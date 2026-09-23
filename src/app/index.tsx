@@ -1,61 +1,89 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { Link } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { isSupabaseConfigured, verifySupabaseConnection } from '@/lib/supabase';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+type Status = 'idle' | 'checking' | 'ok' | 'fail';
 
+/**
+ * Phase 0 verify screen (08-PHASE-PLAN.md §0.7).
+ * • Navigation shell renders (expo-router stack).
+ * • "Verify Supabase" runs a trivial query against the items table to prove
+ *   the env vars / URL / anon key are wired correctly.
+ * • "Clerk auth wiring" link opens the login screen, which renders inside
+ *   ClerkProvider — proving the auth provider loads.
+ * Phase 1 replaces this with the real Student Home.
+ */
 export default function HomeScreen() {
+  const [status, setStatus] = useState<Status>('idle');
+  const [message, setMessage] = useState('');
+
+  const runCheck = async () => {
+    setStatus('checking');
+    setMessage('');
+    try {
+      const ok = await verifySupabaseConnection();
+      setStatus(ok ? 'ok' : 'fail');
+      setMessage(
+        ok
+          ? 'Supabase reachable — env vars are wired correctly.'
+          : 'Unexpected response from Supabase.',
+      );
+    } catch (e) {
+      setStatus('fail');
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
+        <ThemedText type="title">ClaimIt</ThemedText>
+        <ThemedText type="small">
+          Phase 0 scaffold — Expo SDK 57 · expo-router · TypeScript strict
         </ThemedText>
 
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+          <ThemedText type="subtitle">Environment checks</ThemedText>
+          {!isSupabaseConfigured() && (
+            <ThemedText type="small" themeColor="textSecondary">
+              ⏳ Supabase keys not set yet — add them to .env (Phase 0 task 0.4) and restart to
+              enable the live smoke test.
+            </ThemedText>
+          )}
+          <ThemedText type="small">
+            {status === 'checking'
+              ? 'Checking Supabase…'
+              : status === 'ok'
+                ? '✅ Supabase connected'
+                : status === 'fail'
+                  ? `❌ ${message}`
+                  : 'Run the Supabase smoke test, then open the login screen to verify Clerk wiring.'}
+          </ThemedText>
 
-        {Platform.OS === 'web' && <WebBadge />}
+          {status === 'checking' ? (
+            <ActivityIndicator />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={runCheck}
+              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+            >
+              <ThemedText type="linkPrimary">Verify Supabase</ThemedText>
+            </Pressable>
+          )}
+
+          <Link href="/login" asChild>
+            <Pressable accessibilityRole="link" hitSlop={8}>
+              <ThemedText type="link">Open Clerk login screen →</ThemedText>
+            </Pressable>
+          </Link>
+        </ThemedView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -65,28 +93,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    flexDirection: 'row',
   },
   safeArea: {
     flex: 1,
     paddingHorizontal: Spacing.four,
-    alignItems: 'center',
     gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
+    maxWidth: 800,
   },
   stepContainer: {
     gap: Spacing.three,
@@ -94,5 +106,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.four,
     borderRadius: Spacing.four,
+  },
+  button: {
+    alignSelf: 'flex-start',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  buttonPressed: {
+    opacity: 0.6,
   },
 });
