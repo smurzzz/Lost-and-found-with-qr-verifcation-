@@ -49,6 +49,12 @@ export default function LoginScreen() {
             onPress={() => router.replace('/(student)/home')}
           />
 
+          <Button
+            label="Staff sign in (demo)"
+            variant="light"
+            onPress={() => router.replace('/(staff)/dashboard')}
+          />
+
           {!clerkConfigured && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.devNote}>
               Phase 1 preview — Clerk keys not set yet (task 0.4), so SSO goes straight to the mock
