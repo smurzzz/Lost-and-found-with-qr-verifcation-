@@ -77,3 +77,56 @@ export const mockScanResult = {
   verification: 'Red keychain on side pocket',
   status: 'Claimed' as const,
 };
+
+/** Timeline events for one item's history (screen 12). */
+export type MockAuditEvent = {
+  id: string;
+  title: string;
+  time: string;
+  description: string;
+  actor: string;
+  tone: 'navy' | 'orange' | 'green';
+  check?: boolean;
+  /** Lifecycle stage for the filter pills (unclaimed → pending → claimed). */
+  stage: 'unclaimed' | 'pending_claim' | 'claimed';
+};
+
+export const mockAuditEvents: MockAuditEvent[] = [
+  {
+    id: 'event-1',
+    title: 'FOUND',
+    time: 'May 21 · 1:20 PM',
+    description: 'Item logged and tagged',
+    actor: 'By Maya Chen',
+    tone: 'navy',
+    stage: 'unclaimed',
+  },
+  {
+    id: 'event-2',
+    title: 'MATCHED',
+    time: 'May 23 · 9:10 AM',
+    description: 'Possible match surfaced',
+    actor: 'By ClaimIt',
+    tone: 'orange',
+    stage: 'pending_claim',
+  },
+  {
+    id: 'event-3',
+    title: 'CLAIM REQUESTED',
+    time: 'May 23 · 9:18 AM',
+    description: 'Claim submitted for review',
+    actor: 'By Alex Morgan',
+    tone: 'orange',
+    stage: 'pending_claim',
+  },
+  {
+    id: 'event-4',
+    title: 'RELEASED',
+    time: 'May 23 · 9:32 AM',
+    description: 'QR scan confirmed handoff',
+    actor: 'By Maya Chen',
+    tone: 'green',
+    check: true,
+    stage: 'claimed',
+  },
+];
