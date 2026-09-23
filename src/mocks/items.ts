@@ -89,3 +89,42 @@ export const itemCategories: readonly (ItemCategory | 'All')[] = [
   'Clothing',
   'IDs',
 ] as const;
+
+/**
+ * Items the matching engine flagged against the demo student's open lost
+ * report (08-PHASE-PLAN.md §1.2 — mock subset). Real matching lands in Phase 6.
+ */
+export type MockMatch = {
+  id: string;
+  title: string;
+  category: string;
+  location: string;
+  foundDate: string;
+  foundTime: string;
+  photo: number | null;
+  /** Human-readable summary of the lost report it matched. */
+  matchedAgainst: string;
+};
+
+export const mockMatches: MockMatch[] = [
+  {
+    id: 'match-1',
+    title: 'Black Leather Wallet',
+    category: 'Wallets & purses',
+    location: 'Central Library, Front Desk',
+    foundDate: 'May 23, 2025',
+    foundTime: '10:15 AM',
+    photo: walletImage,
+    matchedAgainst: 'your lost report: black leather wallet',
+  },
+  {
+    id: 'match-2',
+    title: 'Car Keys with Leather Keychain',
+    category: 'Keys',
+    location: 'Main St & 3rd Ave',
+    foundDate: 'May 23, 2025',
+    foundTime: '4:40 PM',
+    photo: keysImage,
+    matchedAgainst: 'your lost report: car keys with keychain',
+  },
+];
