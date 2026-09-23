@@ -7,6 +7,7 @@
 export type MockStudentReport = {
   id: string;
   title: string;
+  category: string;
   reporter: string;
   location: string;
   reportedAt: string;
@@ -20,6 +21,7 @@ export const mockStudentReports: MockStudentReport[] = [
   {
     id: 'report-1',
     title: 'Blue Water Bottle',
+    category: 'Other',
     reporter: 'Alex Morgan',
     location: 'Gym entrance',
     reportedAt: 'Today, 9:20 AM',
@@ -28,6 +30,7 @@ export const mockStudentReports: MockStudentReport[] = [
   {
     id: 'report-2',
     title: 'Canvas Backpack',
+    category: 'Bags & backpacks',
     reporter: 'Jordan Lee',
     location: 'Library',
     reportedAt: 'Yesterday',

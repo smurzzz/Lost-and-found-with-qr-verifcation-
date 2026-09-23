@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FormField, SelectModal } from '@/components/ui/form-field';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { formatDateChoice, reportCategories, reportDateOptions } from '@/mocks/forms';
+import { generateTagId } from '@/lib/qr-tag';
 
 /**
  * Staff: Log Found Item (09-FUNCTIONALITY-PROMPT.md §8) — Phase 1 static
@@ -18,16 +19,6 @@ import { formatDateChoice, reportCategories, reportDateOptions } from '@/mocks/f
  * subcopy promises and routes to the QR Tag screen (mockup links screen 10).
  * Real DB write + QR generation land in Phase 5/6.
  */
-
-/** Visible tag id printed on the physical sticker (mock format CI-XXXXXX). */
-function generateTagId(): string {
-  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no lookalikes
-  let id = '';
-  for (let i = 0; i < 6; i += 1) {
-    id += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return `CI-${id}`;
-}
 
 export default function StaffLogFoundScreen() {
   const [category, setCategory] = useState<string | null>(null);
