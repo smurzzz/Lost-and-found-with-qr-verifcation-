@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.jakarta.extrabold,
     fontSize: Math.round(17 * 1),
     color: Colors.light.text,
-    letterSpacing: -0.5,
+    letterSpacing: 0,
   },
   wordmarkAccent: {
     color: Colors.light.orange,
