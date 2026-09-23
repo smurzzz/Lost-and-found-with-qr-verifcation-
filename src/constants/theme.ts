@@ -1,64 +1,107 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * ClaimIt design system tokens — colors, fonts, spacing, radius, shadows.
+ * Source of truth: the screen mockups in /assets + the prototype CSS
+ * (tokens: --ink #111a43, --orange #f5a623, --lavender #f2f1ff, etc.).
  */
-
-import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+import '@/global.css';
+
+/**
+ * Font family names. These must match the keys passed to useFonts() in
+ * app/_layout.tsx — with expo-font, the map key IS the family name.
+ */
+export const Fonts = {
+  dm: {
+    regular: 'DMSans_400Regular',
+    medium: 'DMSans_500Medium',
+    semibold: 'DMSans_600SemiBold',
+    bold: 'DMSans_700Bold',
   },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+  jakarta: {
+    medium: 'PlusJakartaSans_500Medium',
+    semibold: 'PlusJakartaSans_600SemiBold',
+    bold: 'PlusJakartaSans_700Bold',
+    extrabold: 'PlusJakartaSans_800ExtraBold',
   },
+  /** Monospace fallback for code-style text. */
+  mono: Platform.select({
+    ios: 'ui-monospace',
+    android: 'monospace',
+    web: 'var(--font-mono)',
+    default: 'monospace',
+  }),
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+/** The mockups are a light-first design; both schemes share the palette. */
+const palette = {
+  text: '#111a43', // --ink
+  textSecondary: '#7a7c9a', // --muted
+  accent: '#6667ad', // secondary heading accent in mockups
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
+  background: '#fbfbfe', // page background
+  lavender: '#f2f1ff', // --lavender (screen background)
+  backgroundElement: '#f0eff9', // raised tint surfaces
+  backgroundSelected: '#e9e8fb', // --lavender-2
+  surface: '#ffffff', // cards
+
+  line: '#dfdef0', // --line (hairline borders)
+  lineStrong: '#c9c8e2',
+
+  orange: '#f5a623', // --orange (brand accent)
+  orangeSoft: '#fff1d6', // --orange-soft
+  green: '#16a779', // --green
+  greenSoft: '#dff6ed', // --green-soft
+  danger: '#c85f6d',
+} as const;
+
+export const Colors = { light: palette, dark: palette };
+export type ThemeColor = keyof typeof palette;
 
 export const Spacing = {
   half: 2,
+  xs: 6,
   one: 4,
   two: 8,
   three: 16,
   four: 24,
   five: 32,
   six: 64,
+} as const;
+
+export const Radius = {
+  sm: 8,
+  md: 12, // buttons, inputs
+  lg: 16, // cards
+  xl: 22, // bottom sheets
+  pill: 999,
+} as const;
+
+/** Soft card shadow seen on white cards in the mockups. */
+export const Shadows = {
+  card: Platform.select({
+    ios: {
+      shadowColor: '#2b2a66',
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 5 },
+    },
+    android: { elevation: 2 },
+    web: { boxShadow: '0 5px 14px rgba(43,42,102,0.08)' },
+    default: {},
+  }),
+  float: Platform.select({
+    ios: {
+      shadowColor: '#f5a623',
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 5 },
+    },
+    android: { elevation: 4 },
+    web: { boxShadow: '0 5px 12px rgba(245,166,35,0.35)' },
+    default: {},
+  }),
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;

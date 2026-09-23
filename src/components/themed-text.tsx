@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { Colors, Fonts, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
@@ -8,6 +8,11 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
+/**
+ * Typography scale from the mockups: Plus Jakarta Sans for headings/wordmark,
+ * DM Sans for body. Sizes are the prototype phone-frame values scaled ~1.5×
+ * to real device points.
+ */
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
@@ -32,42 +37,47 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
 const styles = StyleSheet.create({
   small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
+    fontFamily: Fonts.dm.regular,
+    fontSize: 13,
+    lineHeight: 19,
   },
   smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
+    fontFamily: Fonts.dm.bold,
+    fontSize: 13,
+    lineHeight: 19,
   },
   default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+    fontFamily: Fonts.dm.regular,
+    fontSize: 15,
+    lineHeight: 22,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontFamily: Fonts.jakarta.extrabold,
+    fontSize: 40,
+    lineHeight: 40,
+    letterSpacing: -1.4,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontFamily: Fonts.jakarta.extrabold,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.9,
   },
   link: {
-    lineHeight: 30,
-    fontSize: 14,
+    fontFamily: Fonts.dm.medium,
+    fontSize: 13,
+    lineHeight: 20,
+    color: Colors.light.accent,
   },
   linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+    fontFamily: Fonts.dm.bold,
+    fontSize: 13,
+    lineHeight: 20,
+    color: Colors.light.orange,
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+    fontWeight: Platform.select({ android: '700' }) ?? '500',
     fontSize: 12,
   },
 });

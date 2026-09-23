@@ -1,9 +1,24 @@
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
+import {
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import type { ReactNode } from 'react';
+
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import type { ReactNode } from 'react';
 
 import { getEnv } from '@/lib/env';
 
@@ -36,13 +51,39 @@ function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Font family names must match the keys in Fonts (src/constants/theme.ts). */
+const fontMap = {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+};
+
 export default function RootLayout() {
+  const [fontsLoaded, fontsError] = useFonts(fontMap);
+
+  useEffect(() => {
+    if (fontsLoaded || fontsError) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontsError]);
+
+  if (!fontsLoaded && !fontsError) {
+    return null;
+  }
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(student)" options={{ headerShown: false }} />
+          <Stack.Screen name="(staff)" options={{ headerShown: false }} />
         </Stack>
       </QueryClientProvider>
     </AuthProvider>
