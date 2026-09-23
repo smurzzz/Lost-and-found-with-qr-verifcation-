@@ -65,3 +65,15 @@ export const mockPendingClaims: MockClaim[] = [
     claimedAt: 'Yesterday, 5:12 PM',
   },
 ];
+
+/**
+ * What a successful QR scan resolves to (screen 11's verified sheet).
+ * Verification is the distinctive detail the claimant submitted on screen 06.
+ */
+export const mockScanResult = {
+  tagId: 'CI-BKP001',
+  title: 'Blue Canvas Backpack',
+  claimant: 'Alex Morgan',
+  verification: 'Red keychain on side pocket',
+  status: 'Claimed' as const,
+};
