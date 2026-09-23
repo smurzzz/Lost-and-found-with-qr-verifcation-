@@ -52,9 +52,11 @@ export default function StudentHomeScreen() {
     setDismissedIds((prev) => new Set(prev).add(item.id));
   };
 
-  const handleMine = (_item: MockItem) => {
-    // Phase 1: navigate to Claim Verification with the item ID (mock target).
-    router.push('/(student)/claim-verify');
+  const handleMine = (item: MockItem) => {
+    router.push({
+      pathname: '/(student)/claim-verify',
+      params: { itemId: item.id },
+    });
   };
 
   const handleNavSelect = (tab: NavTab) => {

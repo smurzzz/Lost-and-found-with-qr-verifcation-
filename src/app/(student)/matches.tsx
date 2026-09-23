@@ -25,8 +25,11 @@ export default function MatchesScreen() {
     setDismissedIds((prev) => new Set(prev).add(match.id));
   };
 
-  const handleMine = (_match: MockMatch) => {
-    router.push('/(student)/claim-verify');
+  const handleMine = (match: MockMatch) => {
+    router.push({
+      pathname: '/(student)/claim-verify',
+      params: { matchId: match.id },
+    });
   };
 
   const handleNavSelect = (tab: NavTab) => {
