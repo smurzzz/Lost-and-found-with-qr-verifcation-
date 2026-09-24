@@ -68,13 +68,23 @@ creates demo items plus a staff row — see §5 for real staff accounts.
 
 ### When the users insert fails with 42501 after sign-in
 
-Run `supabase/diagnose-users-rls.sql` in the SQL editor — it verifies, in
-order: (A) the `auth.jwt()->>'sub'` policies are actually live, (B) the Clerk
-issuer is registered under Third-Party Auth (if it isn't, Supabase rejects
-every Clerk JWT as anonymous **before** any policy runs — the single most
-common cause of this error after a policy fix), and (C) it simulates the
-app's insert with a synthetic Clerk token, so a `INSERT PASSED` verdict means
-the database side is healthy and the problem is the token the app sends.
+Run `supabase/who-am-i.sql` in the SQL editor first — the login-screen error
+then appends `[db sees: role=…, sub=…]`:
+
+- `role=anon, sub=null` → **Supabase is rejecting the token's signature.**
+  Claims and policies are irrelevant until this is fixed. Register the trust
+  link: **Authentication → Third-Party Auth → Add → Clerk**, paste the Clerk
+  Frontend API URL exactly (`https://<slug>.clerk.accounts.dev`, no trailing
+  slash). On older projects without that UI, paste the Supabase **JWT Secret**
+  (Project Settings → API → JWT Settings) into the Clerk template's signing
+  key instead. Then hard-reload the app so it mints a fresh token.
+- `role=authenticated, sub=user_2…` → token accepted; a policy is wrong. Run
+  `supabase/fix-and-verify-users-rls.sql` and read its verdict.
+- The error says `who_am_i does not exist` → `who-am-i.sql` wasn't run on the
+  project the app uses.
+
+`supabase/fix-and-verify-users-rls.sql` re-applies the `auth.jwt()->>'sub'`
+policies and verifies them plus a simulated insert in the same run.
 
 ## 4. Deploy the edge functions
 
