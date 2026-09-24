@@ -21,16 +21,19 @@ click-through for the dashboards plus the CLI deploy commands.
 
    ```json
    {
-     "role": "authenticated",
-     "sub": "{{user.id}}"
+     "role": "authenticated"
    }
    ```
 
+   - Do **not** declare `"sub": "{{user.id}}"` — `sub` is a reserved claim
+     that Clerk adds automatically (it always equals the Clerk user id) and
+     the dashboard rejects templates that declare it ("You can't use the
+     reserved claim: sub").
    - Name the template **`supabase`** — the app requests it by that name
      (`getToken({ template: 'supabase' })` in `authBridge.ts`).
    - Leave the signing key as the default ("Internal").
    - `role: 'authenticated'` is what makes Supabase RLS treat the caller as
-     a signed-in user; `sub: {{user.id}}` becomes `auth.uid()` and must equal
+     a signed-in user; the automatic `sub` becomes `auth.uid()` and equals
      the `users.id` we sync on first login.
 
 ## 2. Supabase — accept Clerk tokens

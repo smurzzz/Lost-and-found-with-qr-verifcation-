@@ -42,7 +42,7 @@ npm install -D eslint prettier husky lint-staged typescript
 
 - [ ] Create Supabase project; note project URL and anon key
 - [ ] Create Clerk project; enable Google as a social connection (Clerk manages the OAuth app — no Google Cloud project of our own); note publishable key
-- [ ] Configure the Clerk → Supabase bridge: Supabase JWT Settings custom issuer pointing at Clerk's JWKS; Clerk JWT template named `supabase` with `sub` + `role: 'authenticated'`
+- [ ] Configure the Clerk → Supabase bridge: Supabase JWT Settings custom issuer pointing at Clerk's JWKS; Clerk JWT template named `supabase` with `role: 'authenticated'` (do NOT declare `sub` — it is a reserved claim Clerk adds automatically)
 - [ ] Create EAS project (`eas init`), link to Expo account
 
 ### 0.5 Environment variables

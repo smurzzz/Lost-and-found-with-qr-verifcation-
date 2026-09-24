@@ -8,9 +8,11 @@
  * Supabase client's session so PostgREST treats the caller as authenticated.
  *
  * Clerk lets you define a JWT template named `supabase` that includes:
- *   { "sub": "{{user.id}}", "role": "authenticated" }
- * `useAuth().getToken({ template: 'supabase' })` fetches it; session.tsx then
- * applies it via `supabase.auth.setSession({ access_token, refresh_token: null })`.
+ *   { "role": "authenticated" }
+ * (`sub` is reserved — Clerk adds it automatically and it always equals the
+ * Clerk user id.) `useAuth().getToken({ template: 'supabase' })` fetches it;
+ * session.tsx then applies it via `supabase.auth.setSession({ access_token,
+ * refresh_token: null })`.
  *
  * If the template is missing or lacks the role claim, RLS executes as `anon`
  * and the users self-signup insert fails — the login screen decodes the token
