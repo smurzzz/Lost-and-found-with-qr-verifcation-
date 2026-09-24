@@ -1,16 +1,22 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius } from '@/constants/theme';
+import { Icon } from '@/components/ui/icon';
+import { brand, Fonts, Radius } from '@/constants/theme';
 
 type CategoryChipProps = {
   label: string;
   active?: boolean;
   onPress?: () => void;
+  /** Optional leading line icon (home-feed chips: Bags, Electronics…). */
+  icon?: React.ComponentProps<typeof Icon>['name'];
 };
 
-/** Filter chip for category lists (Home feed, staff tabs, audit filters). */
-export function CategoryChip({ label, active = false, onPress }: CategoryChipProps) {
+/**
+ * Category filter chip (v3 home-feed mockup): rounded-xl pill, navy when
+ * active, white with a slate border + navy glyph otherwise.
+ */
+export function CategoryChip({ label, active = false, onPress, icon }: CategoryChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -22,6 +28,11 @@ export function CategoryChip({ label, active = false, onPress }: CategoryChipPro
         pressed && styles.chipPressed,
       ]}
     >
+      {icon ? (
+        <View style={styles.iconWrap}>
+          <Icon name={icon} size={15} color={active ? '#ffffff' : brand.navy} />
+        </View>
+      ) : null}
       <ThemedText style={[styles.label, active && styles.labelActive]}>{label}</ThemedText>
     </Pressable>
   );
@@ -29,26 +40,32 @@ export function CategoryChip({ label, active = false, onPress }: CategoryChipPro
 
 const styles = StyleSheet.create({
   chip: {
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.line,
-    borderRadius: Radius.sm + 1,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderColor: '#E2E8F0',
+    borderRadius: Radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    minHeight: 44,
+    paddingHorizontal: 14,
   },
   chipActive: {
-    backgroundColor: Colors.light.text,
-    borderColor: Colors.light.text,
+    backgroundColor: brand.navy,
+    borderColor: brand.navy,
   },
   chipPressed: {
     opacity: 0.8,
   },
+  iconWrap: {
+    marginRight: 6,
+  },
   label: {
-    color: Colors.light.textSecondary,
+    color: brand.navy,
     fontFamily: Fonts.dm.medium,
-    fontSize: 12,
+    fontSize: 13,
   },
   labelActive: {
     color: '#ffffff',
+    fontFamily: Fonts.dm.semibold,
   },
 });

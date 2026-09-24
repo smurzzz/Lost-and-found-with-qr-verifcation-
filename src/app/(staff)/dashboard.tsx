@@ -1,311 +1,216 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { StaffCard } from '@/components/ui/staff-card';
-import { StaffNav, type StaffTab } from '@/components/ui/staff-nav';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
-import { mockFoundItems } from '@/mocks/items';
-import { mockPendingClaims, mockStudentReports } from '@/mocks/staff';
-
 /**
- * Staff Dashboard (09-FUNCTIONALITY-PROMPT.md §7): summary cards, three
- * switchable tabs, actionable staff cards, and the floating "Log Found Item"
- * button. Visuals follow assets/staff-dashboard.webp + the prototype CSS.
+ * Staff Dashboard — v3 port (StaffHome). Stats row, three tabs, Log Found
+ * Item button, and per-tab content (items / student report / claims).
  */
-type TabKey = 'found' | 'claims' | 'reports';
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'found', label: 'Found Items' },
-  { key: 'claims', label: 'Pending Claims' },
-  { key: 'reports', label: 'Student Reports' },
-];
+import { useState } from 'react';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-/** Mockup summary numbers (Phase 6 replaces with live counts). */
-const summary = [
-  { value: '12', label: 'Found items' },
-  { value: '3', label: 'Pending claims' },
-  { value: '2', label: 'Student reports' },
-];
+import { ChevronRight, FileText, Plus } from 'lucide-react-native';
+
+import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
+import { Button3, Header } from '@/components/v3/core';
+import { ItemCard } from '@/components/v3/feed';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
+import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
+import { items, staffPendingClaims } from '@/mocks/data';
+
+const tabs = ['Found Items', 'Student Reports', 'Pending Claims'];
 
 export default function StaffDashboardScreen() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabKey>('reports');
-
-  const goStaff = (tab: StaffTab) => {
-    if (tab === 'home') return;
-    router.push(`/(staff)/${tab}`);
-  };
+  const [tab, setTab] = useState('Found Items');
+  const studentReport = items.find((item) => item.status === 'dropoff');
+  const role = 'staff' as const;
 
   return (
-    <ThemedView style={styles.screen}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <V3Screen
+      nav={
+        <BottomNav3
+          role={role}
+          active="staff-home"
+          onSelect={(t) => router.push(tabRoute(role, t))}
+        />
+      }
+    >
+      <Header
+        title="Staff Dashboard"
+        action={
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>JS</Text>
+          </View>
+        }
+      />
+
+      <View style={styles.stats}>
+        {[
+          ['24', 'Found Items'],
+          ['3', 'Student Reports'],
+          ['6', 'Pending Claims'],
+        ].map(([value, label]) => (
+          <View key={label} style={[styles.statCard, Shadows.card]}>
+            <Text style={styles.statValue}>{value}</Text>
+            <Text style={styles.statLabel}>{label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View>
+        <View style={styles.tabRow}>
+          {tabs.map((name) => (
+            <Pressable
+              key={name}
+              onPress={() => setTab(name)}
+              style={[styles.tab, tab === name ? styles.tabActive : null]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: tab === name ? Colors.primaryForeground : Colors.foreground },
+                ]}
+              >
+                {name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.logButtonWrap}>
+        <Button3
+          label="Log Found Item"
+          height={48}
+          onPress={() => router.push('/(staff)/log-found')}
         >
-          {/* Topbar */}
-          <View style={styles.topbar}>
-            <ThemedText style={styles.topbarTitle}>Staff Dashboard</ThemedText>
-            <View style={[styles.avatar, styles.orangeAvatar]}>
-              <ThemedText style={styles.avatarText}>ST</ThemedText>
-            </View>
-          </View>
+          <Plus size={20} color={Colors.primaryForeground} />
+        </Button3>
+      </View>
 
-          {/* Summary cards */}
-          <View style={styles.summary}>
-            {summary.map((card) => (
-              <View key={card.label} style={styles.summaryCard}>
-                <ThemedText style={styles.summaryValue}>{card.value}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.summaryLabel}>
-                  {card.label}
-                </ThemedText>
-              </View>
-            ))}
-          </View>
-
-          {/* Tabs */}
-          <View style={styles.tabRow} accessibilityRole="tablist">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <Pressable
-                  key={tab.key}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  accessibilityLabel={tab.label}
-                  onPress={() => setActiveTab(tab.key)}
-                  style={styles.tabItem}
-                >
-                  <ThemedText style={[styles.tab, isActive && styles.tabActive]}>
-                    {tab.label}
-                  </ThemedText>
-                  {isActive && <View style={styles.tabUnderline} />}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Section header + cards for the active tab */}
-          <View style={styles.sectionTitle}>
-            <ThemedText style={styles.sectionTitleText}>{sectionTitle[activeTab].label}</ThemedText>
-            <StatusBadge
-              label={sectionTitle[activeTab].badge}
-              tone={sectionTitle[activeTab].tone}
-            />
-          </View>
-          <View style={styles.cardList}>{renderCards(activeTab, router)}</View>
-
-          {/* Floating add */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Log Found Item"
-            onPress={() => router.push('/(staff)/log-found')}
-            style={({ pressed }) => [styles.floatingAdd, pressed && { opacity: 0.85 }]}
-          >
-            <ThemedText style={styles.floatingAddText}>＋ Log Found Item</ThemedText>
-          </Pressable>
-        </ScrollView>
-
-        <StaffNav active="home" onSelect={goStaff} />
-      </SafeAreaView>
-    </ThemedView>
+      <View style={styles.list}>
+        {tab === 'Found Items'
+          ? items.map((item) => <ItemCard key={item.id} item={item} staff />)
+          : null}
+        {tab === 'Student Reports' && studentReport ? (
+          <ItemCard
+            item={studentReport}
+            staff
+            onOpen={() => router.push('/(staff)/confirm-receipt')}
+          />
+        ) : null}
+        {tab === 'Pending Claims'
+          ? staffPendingClaims.map((claim, index) => (
+              <Pressable
+                key={claim.name}
+                style={[styles.claimCard, Shadows.card]}
+                onPress={() => router.push('/(staff)/scan')}
+              >
+                <View style={styles.claimIcon}>
+                  <FileText size={20} color={Colors.pendingForeground} />
+                </View>
+                <View style={styles.claimText}>
+                  <Text style={styles.claimName} numberOfLines={1}>
+                    {claim.name}
+                  </Text>
+                  <Text style={styles.claimDetail} numberOfLines={1}>
+                    “{index === 0 ? staffPendingClaims[0].detail : staffPendingClaims[1].detail}”
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={Colors.mutedForeground} />
+              </Pressable>
+            ))
+          : null}
+      </View>
+    </V3Screen>
   );
 }
 
-/** Section headers per tab — the mockup shows "Needs confirmation · 2 pending". */
-const sectionTitle: Record<TabKey, { label: string; badge: string; tone: 'amber' | 'green' }> = {
-  found: { label: 'Available for claim', badge: '5 items', tone: 'green' },
-  claims: { label: 'Awaiting verification', badge: '2 claims', tone: 'amber' },
-  reports: { label: 'Needs confirmation', badge: '2 pending', tone: 'amber' },
-};
-
-function renderCards(tab: TabKey, router: ReturnType<typeof useRouter>) {
-  if (tab === 'reports') {
-    return mockStudentReports.map((report) => (
-      <StaffCard
-        key={report.id}
-        status={report.status === 'pending_dropoff' ? 'Pending drop-off' : 'QR tag ready'}
-        statusTone={report.status === 'pending_dropoff' ? 'amber' : 'green'}
-        title={report.title}
-        meta={[`Reported by ${report.reporter}`, `⌖ ${report.location} · ${report.reportedAt}`]}
-        actionLabel={report.status === 'pending_dropoff' ? 'Confirm Receipt' : 'View QR Tag'}
-        onAction={() =>
-          router.push(
-            report.status === 'pending_dropoff'
-              ? `/(staff)/confirm-receipt?reportId=${report.id}`
-              : `/(staff)/qr-tag?itemId=${report.itemId ?? ''}`,
-          )
-        }
-      />
-    ));
-  }
-
-  if (tab === 'claims') {
-    return mockPendingClaims.map((claim) => (
-      <StaffCard
-        key={claim.id}
-        icon="⌾"
-        status="Claim received"
-        statusTone="amber"
-        title={claim.itemTitle}
-        meta={[`Claimed by ${claim.claimant}`, `“${claim.detailPreview}”`, `◷ ${claim.claimedAt}`]}
-        actionLabel="Review Claim"
-        onAction={() => router.push('/(staff)/audit')}
-      />
-    ));
-  }
-
-  return mockFoundItems.map((item) => (
-    <StaffCard
-      key={item.id}
-      status={item.status === 'pending_dropoff' ? 'Pending drop-off' : 'Available'}
-      statusTone={item.status === 'pending_dropoff' ? 'amber' : 'green'}
-      title={item.title}
-      meta={[item.category, `⌖ ${item.location} · ${item.foundDate}, ${item.foundTime}`]}
-      actionLabel={item.status === 'pending_dropoff' ? 'Confirm Receipt' : 'View QR Tag'}
-      onAction={() =>
-        router.push(
-          item.status === 'pending_dropoff'
-            ? `/(staff)/confirm-receipt?itemId=${item.id}`
-            : `/(staff)/qr-tag?itemId=${item.id}`,
-        )
-      }
-    />
-  ));
-}
-
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.light.lavender,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 110,
-    paddingHorizontal: Spacing.two + 7,
-    paddingTop: Spacing.two,
-  },
-
-  // Topbar
-  topbar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    height: 46,
-    justifyContent: 'space-between',
-    marginBottom: Spacing.three,
-  },
-  topbarTitle: {
-    fontFamily: Fonts.jakarta.extrabold,
-    fontSize: 15,
-    letterSpacing: -0.3,
-  },
   avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
-    backgroundColor: Colors.light.text,
-    borderRadius: Radius.pill,
-    height: 34,
     justifyContent: 'center',
-    width: 34,
-  },
-  orangeAvatar: {
-    backgroundColor: Colors.light.orange,
   },
   avatarText: {
-    color: '#ffffff',
-    fontFamily: Fonts.dm.bold,
-    fontSize: 11,
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: Colors.primaryForeground,
   },
-
-  // Summary
-  summary: {
+  stats: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    marginBottom: Spacing.three,
+    gap: 8,
+    paddingHorizontal: 16,
   },
-  summaryCard: {
-    alignItems: 'center',
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.line,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+  statCard: {
     flex: 1,
-    paddingVertical: Spacing.two + 2,
-    paddingHorizontal: 4,
+    borderRadius: Radius.input,
+    backgroundColor: Colors.card,
+    padding: 12,
   },
-  summaryValue: {
-    fontFamily: Fonts.jakarta.bold,
-    fontSize: 20,
-    letterSpacing: -0.5,
+  statValue: {
+    fontSize: 24,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
   },
-  summaryLabel: {
-    fontSize: 9,
-    marginTop: 2,
-    textAlign: 'center',
+  statLabel: {
+    marginTop: 4,
+    fontSize: 10,
+    lineHeight: 16,
+    color: Colors.mutedForeground,
   },
-
-  // Tabs
   tabRow: {
-    borderBottomColor: Colors.light.line,
-    borderBottomWidth: 1,
     flexDirection: 'row',
-    gap: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  tabItem: {
-    minWidth: 48,
+    gap: 8,
+    paddingHorizontal: 16,
+    marginTop: 20,
   },
   tab: {
-    color: Colors.light.textSecondary,
-    fontFamily: Fonts.dm.medium,
-    fontSize: 11,
-    paddingBottom: Spacing.two,
+    height: 36,
+    borderRadius: Radius.full,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   tabActive: {
-    color: Colors.light.text,
-    fontFamily: Fonts.dm.bold,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  tabUnderline: {
-    backgroundColor: Colors.light.orange,
-    borderRadius: Radius.pill,
-    height: 2,
-    marginBottom: -1,
+  tabText: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
   },
-
-  // Section
-  sectionTitle: {
-    alignItems: 'center',
+  logButtonWrap: { paddingHorizontal: 16, paddingTop: 20 },
+  list: { gap: 16, paddingHorizontal: 16, paddingTop: 16 },
+  claimCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.two,
-  },
-  sectionTitleText: {
-    fontFamily: Fonts.dm.bold,
-    fontSize: 12,
-  },
-  cardList: {
-    gap: 0,
-  },
-
-  // Floating add
-  floatingAdd: {
     alignItems: 'center',
-    backgroundColor: Colors.light.orange,
-    borderRadius: Radius.pill,
-    marginTop: Spacing.three,
-    minHeight: 44,
-    justifyContent: 'center',
-    ...Shadows.float,
+    gap: 12,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 16,
   },
-  floatingAddText: {
-    color: '#ffffff',
-    fontFamily: Fonts.dm.bold,
-    fontSize: 13,
+  claimIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.pendingSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  claimText: { flex: 1, minWidth: 0 },
+  claimName: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
+  },
+  claimDetail: {
+    marginTop: 4,
+    fontSize: 12,
+    color: Colors.mutedForeground,
   },
 });

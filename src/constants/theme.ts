@@ -56,6 +56,24 @@ const palette = {
   danger: '#c85f6d',
 } as const;
 
+/**
+ * Brand palette from the v3 home-feed mockup (2026 redesign): navy/blue/orange
+ * over a cool light background. Additive — existing screens keep `palette`.
+ */
+export const brand = {
+  navy: '#121F3E',
+  blue: '#2B4BF2',
+  orange: '#F97316',
+  amberBg: '#FEF3C7',
+  amberText: '#D97706',
+  bgLight: '#EEF1F8',
+  cardBg: '#FFFFFF',
+  textDark: '#0F172A',
+  textMuted: '#64748B',
+  textSubtle: '#94A3B8',
+  borderLight: '#E2E8F0',
+} as const;
+
 export const Colors = { light: palette, dark: palette };
 export type ThemeColor = keyof typeof palette;
 
@@ -100,6 +118,18 @@ export const Shadows = {
     },
     android: { elevation: 4 },
     web: { boxShadow: '0 5px 12px rgba(245,166,35,0.35)' },
+    default: {},
+  }),
+  /** Neutral soft shadow used by the v3 white feed cards. */
+  soft: Platform.select({
+    ios: {
+      shadowColor: '#0F172A',
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+    },
+    android: { elevation: 2 },
+    web: { boxShadow: '0 3px 10px rgba(15,23,42,0.06)' },
     default: {},
   }),
 } as const;

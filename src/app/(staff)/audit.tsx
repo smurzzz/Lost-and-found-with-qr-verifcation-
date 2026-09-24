@@ -1,273 +1,158 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { StaffNav } from '@/components/ui/staff-nav';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { mockAuditEvents, type MockAuditEvent } from '@/mocks/staff';
-
 /**
- * Staff: Audit Log (09-FUNCTIONALITY-PROMPT.md §12) — Phase 1 static build.
- * One item's lifecycle timeline (mockup: Blue Canvas Backpack) with working
- * stage filters. Confirm Release on the Scan screen routes here. Real
- * event history from the DB lands in Phase 7.
+ * Audit Log (staff) — v3 port (Audit): filter chips, expandable per-item
+ * cards with a step timeline (green dots, connecting line).
  */
 
-const filters = [
-  { key: 'all', label: 'All' },
-  { key: 'unclaimed', label: 'Unclaimed' },
-  { key: 'pending_claim', label: 'Pending Claim' },
-  { key: 'claimed', label: 'Claimed' },
-] as const;
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-type FilterKey = (typeof filters)[number]['key'];
+import { PackageCheck } from 'lucide-react-native';
 
-function TimelineDot({ event }: { event: MockAuditEvent }) {
-  const bg =
-    event.tone === 'green'
-      ? Colors.light.green
-      : event.tone === 'orange'
-        ? Colors.light.orange
-        : Colors.light.text;
+import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
+import { ChipButton, Header, StatusPill } from '@/components/v3/core';
+import { V3Screen } from '@/components/v3/screen';
+import { auditStepsStaff, auditStepsStudent, items, type MockItem } from '@/mocks/data';
+
+export default function AuditScreen() {
+  const [expanded, setExpanded] = useState('CI-2476');
+
   return (
-    <View style={[styles.dot, { backgroundColor: bg }]}>
-      {event.check ? <ThemedText style={styles.dotCheck}>✓</ThemedText> : null}
-    </View>
+    <V3Screen>
+      <Header title="Audit Log" subtitle="Chronological item history" />
+      <View>
+        <View style={styles.filterRow}>
+          {['All', 'Unclaimed', 'Pending Claim', 'Claimed'].map((name, index) => (
+            <ChipButton key={name} label={name} active={index === 0} />
+          ))}
+        </View>
+      </View>
+      <View style={styles.list}>
+        {items.map((item) => (
+          <Pressable
+            key={item.id}
+            style={[styles.card, Shadows.card]}
+            onPress={() => setExpanded(expanded === item.id ? '' : item.id)}
+          >
+            <View style={styles.cardTop}>
+              <View style={styles.cardIcon}>
+                <PackageCheck size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.cardText}>
+                <Text style={styles.cardName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.cardMeta}>
+                  {item.date} · {item.id}
+                </Text>
+              </View>
+              <StatusPill status={item.status} />
+            </View>
+            {expanded === item.id ? (
+              <View style={styles.timeline}>
+                {stepsFor(item).map((step, index, all) => (
+                  <View key={step} style={styles.stepRow}>
+                    <View style={styles.stepRail}>
+                      <View style={styles.stepDot} />
+                      {index < all.length - 1 ? <View style={styles.stepLine} /> : null}
+                    </View>
+                    <View>
+                      <Text style={styles.stepName}>{step}</Text>
+                      <Text style={styles.stepMeta}>
+                        {index % 2 ? 'Jordan Smith · Staff' : 'System'} · Sep {20 + index}, 10:
+                        {15 + index} AM
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </Pressable>
+        ))}
+      </View>
+    </V3Screen>
   );
 }
 
-export default function StaffAuditScreen() {
-  const [filter, setFilter] = useState<FilterKey>('all');
-  const events = mockAuditEvents.filter((e) => filter === 'all' || e.stage === filter);
-
-  const goStaff = (tab: 'home' | 'scan' | 'audit' | 'profile') => {
-    if (tab === 'audit') return;
-    router.push(tab === 'home' ? '/(staff)/dashboard' : `/(staff)/${tab}`);
-  };
-
-  return (
-    <ThemedView style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Topbar (mockup .topbar): back, title, menu */}
-        <View style={styles.topbar}>
-          <ThemedText
-            accessibilityRole="button"
-            style={styles.backGlyph}
-            onPress={() => router.push('/(staff)/dashboard')}
-          >
-            ‹
-          </ThemedText>
-          <ThemedText style={styles.topbarTitle}>Audit Log</ThemedText>
-          <ThemedText style={styles.menuGlyph}>⋯</ThemedText>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <ThemedText style={styles.kicker}>12 / STAFF FLOW</ThemedText>
-          <ThemedText type="subtitle" style={styles.pageTitle}>
-            Item history
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.subcopy}>
-            Blue Canvas Backpack · ID CLM-2048
-          </ThemedText>
-
-          {/* Stage filters (mockup .filters) */}
-          <View style={styles.filters}>
-            {filters.map((f) => {
-              const isActive = filter === f.key;
-              return (
-                <Pressable
-                  key={f.key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isActive }}
-                  accessibilityLabel={`${f.label} filter`}
-                  onPress={() => setFilter(f.key)}
-                  style={[styles.filter, isActive && styles.filterActive]}
-                >
-                  <ThemedText style={[styles.filterText, isActive && styles.filterTextActive]}>
-                    {f.label}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Timeline (mockup .timeline) */}
-          <View style={styles.timeline}>
-            {events.map((event) => (
-              <View key={event.id} style={styles.timelineRow}>
-                <TimelineDot event={event} />
-                <View style={styles.timelineBody}>
-                  <View style={styles.titleRow}>
-                    <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
-                    <ThemedText style={styles.eventTime}>{event.time}</ThemedText>
-                  </View>
-                  <ThemedText style={styles.eventDescription}>{event.description}</ThemedText>
-                  <ThemedText style={styles.eventActor}>{event.actor}</ThemedText>
-                </View>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-
-        <StaffNav active="audit" onSelect={goStaff} />
-      </SafeAreaView>
-    </ThemedView>
-  );
+function stepsFor(item: MockItem): string[] {
+  return item.source === 'Reported by student' ? auditStepsStudent : auditStepsStaff;
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.light.lavender,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  topbar: {
-    alignItems: 'center',
+  filterRow: {
     flexDirection: 'row',
-    height: 46,
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
+    gap: 8,
+    paddingHorizontal: 16,
   },
-  backGlyph: {
-    color: Colors.light.text,
-    fontFamily: Fonts.dm.regular,
-    fontSize: 30,
-    lineHeight: 34,
-    minHeight: 48,
-    minWidth: 48,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+  list: { gap: 12, paddingHorizontal: 16, paddingTop: 20 },
+  card: {
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 16,
   },
-  topbarTitle: {
-    fontFamily: Fonts.jakarta.bold,
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardText: { flex: 1, minWidth: 0 },
+  cardName: {
     fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
   },
-  menuGlyph: {
-    color: Colors.light.text,
-    fontSize: 18,
-    minHeight: 48,
-    minWidth: 48,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+  cardMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: Colors.mutedForeground,
   },
-
-  scrollContent: {
-    paddingBottom: 110,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.half,
-  },
-  kicker: {
-    color: Colors.light.accent,
-    fontFamily: Fonts.jakarta.bold,
-    fontSize: 11,
-    letterSpacing: 2,
-    marginTop: Spacing.xs,
-  },
-  pageTitle: {
-    fontSize: 26,
-    lineHeight: 29,
-    marginTop: Spacing.xs,
-  },
-  subcopy: {
-    marginBottom: Spacing.two + 2,
-    marginTop: Spacing.xs + 2,
-  },
-
-  // Filters (mockup .filters)
-  filters: {
-    flexDirection: 'row',
-    gap: Spacing.one + 1,
-    marginBottom: Spacing.three + 2,
-    marginTop: Spacing.two,
-  },
-  filter: {
-    borderColor: Colors.light.line,
-    borderRadius: 7,
-    borderWidth: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.two + 1,
-  },
-  filterActive: {
-    backgroundColor: Colors.light.text,
-    borderColor: Colors.light.text,
-  },
-  filterText: {
-    color: Colors.light.textSecondary,
-    fontFamily: Fonts.dm.medium,
-    fontSize: 11,
-  },
-  filterTextActive: {
-    color: '#ffffff',
-    fontFamily: Fonts.dm.bold,
-  },
-
-  // Timeline (mockup .timeline): connector line via border on each row
   timeline: {
-    paddingLeft: 3,
-    paddingTop: 3,
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 16,
+    gap: 16,
   },
-  timelineRow: {
-    borderLeftColor: '#d5d4e8',
-    borderLeftWidth: 1,
+  stepRow: {
     flexDirection: 'row',
-    gap: Spacing.two + 3,
-    marginBottom: Spacing.four - 5,
-    marginLeft: 6,
-    paddingBottom: 0,
-    paddingLeft: 0,
+    gap: 12,
   },
-  timelineBody: {
-    flex: 1,
-    gap: 3,
-    paddingBottom: Spacing.four - 3,
-  },
-  titleRow: {
+  stepRail: {
+    width: 12,
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.two,
   },
-  eventTitle: {
-    fontFamily: Fonts.dm.bold,
+  stepDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.success,
+    borderWidth: 4,
+    borderStyle: 'solid',
+    borderColor: Colors.successSoft,
+    marginTop: 2,
+  },
+  stepLine: {
+    position: 'absolute',
+    top: 14,
+    bottom: -16,
+    width: 1,
+    backgroundColor: Colors.border,
+  },
+  stepName: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+    color: Colors.foreground,
+  },
+  stepMeta: {
+    marginTop: 2,
     fontSize: 12,
-    letterSpacing: 0.3,
-  },
-  eventTime: {
-    color: Colors.light.textSecondary,
-    fontSize: 11,
-  },
-  eventDescription: {
-    color: Colors.light.textSecondary,
-    fontSize: 12,
-  },
-  eventActor: {
-    color: Colors.light.textSecondary,
-    fontSize: 11,
-  },
-
-  // Dot (mockup .dot)
-  dot: {
-    alignItems: 'center',
-    borderRadius: Radius.pill,
-    flexShrink: 0,
-    height: 13,
-    justifyContent: 'center',
-    marginLeft: -7,
-    marginTop: 3,
-    width: 13,
-    zIndex: 1,
-  },
-  dotCheck: {
-    color: '#ffffff',
-    fontSize: 8,
-    fontFamily: Fonts.dm.bold,
+    color: Colors.mutedForeground,
   },
 });

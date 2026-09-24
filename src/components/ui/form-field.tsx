@@ -1,27 +1,34 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 type FormFieldProps = {
-  /** Leading glyph from the mockup (◉ ✎ ◷ ⌖ ▧). */
-  icon: string;
+  /** Leading line icon (mockups: tag, message-circle, map-pin, calendar…). */
+  icon: React.ComponentProps<typeof Icon>['name'];
   label: string;
   value?: string;
-  /** Empty-state placeholder text (mockup: "Add location"). */
+  /** Empty-state placeholder text (mockup: "Select a category"). */
   placeholder?: string;
+  /** Select-like fields press through and show the chevron. */
   onPress?: () => void;
   children?: React.ReactNode;
-  /** Multi-line variant (mockup .tall, used for descriptions). */
+  /** Multi-line variant (descriptions). */
   tall?: boolean;
   error?: string | null;
   focused?: boolean;
+  /** Chevron direction on select fields (mockup: down for Category). */
+  chevron?: 'right' | 'down';
+  /** Trailing adornment icon (mockup: calendar on the date field). */
+  trailingIcon?: React.ComponentProps<typeof Icon>['name'];
 };
 
 /**
- * Mockup-style form row: white rounded field with leading glyph, small
- * label on top and value/placeholder underneath (.form label styles).
- * Either pass `onPress` (select-like fields) or `children` (a TextInput).
+ * V2 form row (report/claim mockups 2025-09): rounded outline field with a
+ * periwinkle line icon, muted label on top and value/placeholder underneath,
+ * chevron-right on select fields. Either pass `onPress` (select-like fields)
+ * or `children` (a TextInput).
  */
 export function FormField({
   icon,
@@ -33,6 +40,8 @@ export function FormField({
   tall = false,
   error,
   focused = false,
+  chevron = 'right',
+  trailingIcon,
 }: FormFieldProps) {
   const showPlaceholder = !value && placeholder;
   return (
@@ -48,7 +57,9 @@ export function FormField({
           pressed && onPress ? styles.fieldPressed : null,
         ]}
       >
-        <ThemedText style={styles.icon}>{icon}</ThemedText>
+        <View style={styles.iconWrap}>
+          <Icon name={icon} size={20} color="accent" />
+        </View>
         <View style={styles.textCol}>
           <ThemedText style={styles.labelText}>{label}</ThemedText>
           {value || showPlaceholder ? (
@@ -62,7 +73,16 @@ export function FormField({
             children
           )}
         </View>
-        {onPress ? <ThemedText style={styles.chevron}>⌄</ThemedText> : null}
+        {trailingIcon ? <Icon name={trailingIcon} size={19} color="#8f91ab" /> : null}
+        {onPress && !trailingIcon ? (
+          <View style={styles.chevronWrap}>
+            <Icon
+              name={chevron === 'down' ? 'chevron-down' : 'chevron-right'}
+              size={18}
+              color="#a9aac4"
+            />
+          </View>
+        ) : null}
       </Pressable>
       {error ? (
         <ThemedText style={styles.errorText} themeColor="danger">
@@ -116,7 +136,7 @@ export function SelectModal({
                 <ThemedText style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                   {option}
                 </ThemedText>
-                {isSelected ? <ThemedText style={styles.optionCheck}>✓</ThemedText> : null}
+                {isSelected ? <Icon name="check" size={16} color="orange" /> : null}
               </Pressable>
             );
           })}
@@ -134,16 +154,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.light.surface,
     borderColor: Colors.light.line,
-    borderRadius: 11,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: Spacing.two,
-    minHeight: 62,
-    paddingHorizontal: Spacing.two + 3,
-    paddingVertical: Spacing.two,
+    gap: Spacing.two + 4,
+    minHeight: 68,
+    paddingHorizontal: Spacing.two + 6,
+    paddingVertical: Spacing.two + 2,
   },
   fieldTall: {
-    minHeight: 92,
+    minHeight: 96,
   },
   fieldFocused: {
     borderColor: Colors.light.accent,
@@ -154,10 +174,8 @@ const styles = StyleSheet.create({
   fieldPressed: {
     backgroundColor: Colors.light.backgroundSelected,
   },
-  icon: {
-    color: Colors.light.accent,
-    fontSize: 15,
-    width: 20,
+  iconWrap: {
+    width: 24,
   },
   textCol: {
     flex: 1,
@@ -165,20 +183,19 @@ const styles = StyleSheet.create({
   },
   labelText: {
     color: Colors.light.textSecondary,
-    fontSize: 11,
+    fontSize: 13,
   },
   valueText: {
     color: Colors.light.text,
     fontFamily: Fonts.dm.medium,
-    fontSize: 14,
+    fontSize: 15,
   },
   placeholderText: {
-    color: Colors.light.textSecondary,
+    color: '#a9aac4',
     fontFamily: Fonts.dm.regular,
   },
-  chevron: {
-    color: Colors.light.textSecondary,
-    fontSize: 14,
+  chevronWrap: {
+    width: 20,
   },
   errorText: {
     fontSize: 11,
@@ -238,10 +255,5 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     fontFamily: Fonts.dm.bold,
-  },
-  optionCheck: {
-    color: Colors.light.orange,
-    fontFamily: Fonts.dm.bold,
-    fontSize: 14,
   },
 });

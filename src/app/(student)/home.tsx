@@ -1,310 +1,142 @@
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomNav, type NavTab } from '@/components/ui/bottom-nav';
-import { Button } from '@/components/ui/button';
-import { CategoryChip } from '@/components/ui/category-chip';
-import { ItemCard } from '@/components/ui/item-card';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
-import { itemCategories, mockFoundItems, type ItemCategory, type MockItem } from '@/mocks/items';
-
-type MockUser = {
-  name: string;
-  initials: string;
-  avatar: number;
-};
-
-const mockUser: MockUser = {
-  name: 'Alex',
-  initials: 'AM',
-  avatar: require('@/assets/items/student.avif'),
-};
-
 /**
- * Student Home (09-FUNCTIONALITY-PROMPT.md §2) — Phase 1 static build.
- * Mock feed, client-side category filter, Mine/Not mine only toggling local
- * state or navigating (08-PHASE-PLAN.md §1.2). Real data lands in Phase 6.
- * Visuals: assets/student-home.webp + prototype CSS (.topbar/.searchbox/...).
+ * Student Home — v3 port from the Lovable source (StudentHome).
+ * Greeting header, found-items feed, and My Lost Reports preview.
  */
+
+import { router } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Sparkles } from 'lucide-react-native';
+
+import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
+import { Button3, StatusPill } from '@/components/v3/core';
+import { Feed } from '@/components/v3/feed';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
+import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
+
 export default function StudentHomeScreen() {
-  const [activeCategory, setActiveCategory] = useState<ItemCategory | 'All'>('All');
-  const [query, setQuery] = useState('');
-  const [queryFocused, setQueryFocused] = useState(false);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-
-  const visibleItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return mockFoundItems.filter((item) => {
-      if (dismissedIds.has(item.id)) return false;
-      if (activeCategory !== 'All' && item.category !== activeCategory) return false;
-      if (q && !`${item.title} ${item.location}`.toLowerCase().includes(q)) {
-        return false;
-      }
-      return true;
-    });
-  }, [activeCategory, dismissedIds, query]);
-
-  const handleNotMine = (item: MockItem) => {
-    setDismissedIds((prev) => new Set(prev).add(item.id));
-  };
-
-  const handleMine = (item: MockItem) => {
-    router.push({
-      pathname: '/(student)/claim-verify',
-      params: { itemId: item.id },
-    });
-  };
-
-  const handleNavSelect = (tab: NavTab) => {
-    // Phase 1.4 wires all tab routes; for now only Profile has a target.
-    if (tab === 'profile') {
-      router.push('/(student)/profile');
-    }
-  };
-
   return (
-    <ThemedView style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Top bar: wordmark + avatar (mockup .topbar) */}
-        <View style={styles.topbar}>
-          <ThemedText style={styles.wordmark}>
-            claim<ThemedText style={styles.wordmarkAccent}>it</ThemedText>
-          </ThemedText>
-          <Image source={mockUser.avatar} style={styles.avatar} />
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="student"
+          active="home"
+          onSelect={(tab) => router.push(tabRoute('student', tab))}
+        />
+      }
+    >
+      <View style={styles.topBar}>
+        <View style={styles.topBarText}>
+          <Text style={styles.greeting}>Good morning, Alex</Text>
+          <Text style={styles.heading}>Find your lost item.</Text>
         </View>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>AM</Text>
+        </View>
+      </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <ThemedText style={styles.greeting}>Good morning, {mockUser.name}</ThemedText>
-          <ThemedText type="subtitle" style={styles.pageTitle}>
-            Find your{'\n'}
-            <ThemedText style={styles.pageTitleAccent}>lost item</ThemedText>
-          </ThemedText>
+      <Feed staff={false} onMine={() => router.push('/(student)/claim-verify')} />
 
-          {/* Search box (mockup .searchbox): tap to focus, type to filter */}
-          <Pressable
-            accessibilityRole="search"
-            style={styles.searchbox}
-            onPress={() => setQueryFocused(true)}
-          >
-            <ThemedText style={styles.searchGlyph}>⌕</ThemedText>
-            {queryFocused || query ? (
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search found items..."
-                placeholderTextColor={Colors.light.textSecondary}
-                style={styles.searchInput}
-                autoFocus
-                onBlur={() => setQueryFocused(false)}
-              />
-            ) : (
-              <ThemedText style={styles.searchPlaceholder}>Search found items...</ThemedText>
-            )}
-            <ThemedText style={styles.searchScan}>⌑</ThemedText>
-          </Pressable>
-
-          {/* Category chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipsRow}
-            contentContainerStyle={styles.chipsContent}
-          >
-            {itemCategories.map((category) => (
-              <CategoryChip
-                key={category}
-                label={category}
-                active={activeCategory === category}
-                onPress={() => setActiveCategory(category)}
-              />
-            ))}
-          </ScrollView>
-
-          {/* Section header */}
-          <View style={styles.sectionTitle}>
-            <ThemedText style={styles.sectionTitleText}>Found items</ThemedText>
-            <Pressable accessibilityRole="link">
-              <ThemedText style={styles.seeAll}>See all</ThemedText>
-            </Pressable>
+      <View style={styles.reportsSection}>
+        <View style={styles.reportsHeading}>
+          <Text style={styles.reportsTitle}>My Lost Reports</Text>
+          <Button3
+            label="View matches"
+            variant="link"
+            height={32}
+            style={styles.viewMatches}
+            onPress={() => router.push('/(student)/matches')}
+          />
+        </View>
+        <View style={[styles.reportCard, Shadows.card]}>
+          <View style={styles.reportIcon}>
+            <Sparkles size={20} color={Colors.pendingForeground} />
           </View>
-
-          {/* Feed */}
-          {visibleItems.length === 0 ? (
-            <View style={styles.emptyState}>
-              <ThemedText style={styles.emptyGlyph}>⌕</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                No items here yet. Try another category or clear the search.
-              </ThemedText>
-            </View>
-          ) : (
-            visibleItems.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onThisIsMine={handleMine}
-                onNotMine={handleNotMine}
-              />
-            ))
-          )}
-
-          {/* Report buttons (mockup .home-buttons) */}
-          <View style={styles.homeButtons}>
-            <Button
-              label="＋ Report lost"
-              variant="orange"
-              onPress={() => router.push('/(student)/report-lost')}
-              style={styles.homeButton}
-            />
-            <Button
-              label="＋ Report found"
-              variant="light"
-              onPress={() => router.push('/(student)/report-found')}
-              style={styles.homeButton}
-            />
+          <View style={styles.reportTextWrap}>
+            <Text style={styles.reportName}>White headphones</Text>
+            <Text style={styles.reportMeta}>Reported Sep 21 · 2 possible matches</Text>
           </View>
-        </ScrollView>
-
-        <BottomNav active="home" onSelect={handleNavSelect} />
-      </SafeAreaView>
-    </ThemedView>
+          <StatusPill status="pending" />
+        </View>
+      </View>
+    </V3Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.light.lavender,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  topbar: {
-    alignItems: 'center',
+  topBar: {
     flexDirection: 'row',
-    height: 46,
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingTop: 20,
   },
-  wordmark: {
-    fontFamily: Fonts.jakarta.extrabold,
-    fontSize: 17,
-    letterSpacing: 0,
+  topBarText: { flex: 1, minWidth: 0 },
+  greeting: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    color: Colors.mutedForeground,
   },
-  wordmarkAccent: {
-    color: Colors.light.orange,
+  heading: {
+    marginTop: 4,
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
   },
   avatar: {
-    borderRadius: Radius.pill,
-    height: 34,
-    width: 34,
-  },
-  scrollContent: {
-    paddingBottom: 96,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.half,
-  },
-  greeting: {
-    color: Colors.light.textSecondary,
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  pageTitle: {
-    fontSize: 30,
-    lineHeight: 32,
-    marginBottom: Spacing.two + 2,
-  },
-  pageTitleAccent: {
-    color: Colors.light.accent,
-  },
-
-  searchbox: {
-    alignItems: 'center',
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.line,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: Spacing.two,
-    height: 46,
-    paddingHorizontal: Spacing.two + 3,
-    ...Shadows.card,
-  },
-  searchGlyph: {
-    color: Colors.light.textSecondary,
-    fontSize: 15,
-  },
-  searchPlaceholder: {
-    color: Colors.light.textSecondary,
-    flex: 1,
-    fontSize: 13,
-  },
-  searchInput: {
-    color: Colors.light.text,
-    flex: 1,
-    fontFamily: Fonts.dm.regular,
-    fontSize: 13,
-    padding: 0,
-  },
-  searchScan: {
-    color: Colors.light.text,
-    fontSize: 16,
-  },
-
-  chipsRow: {
-    flexGrow: 0,
-    marginTop: Spacing.two + 2,
-  },
-  chipsContent: {
-    gap: Spacing.xs,
-    paddingVertical: Spacing.xs,
-  },
-
-  sectionTitle: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.two,
-    marginTop: Spacing.two + 2,
-    paddingHorizontal: 2,
-  },
-  sectionTitleText: {
-    fontFamily: Fonts.jakarta.bold,
-    fontSize: 14,
-  },
-  seeAll: {
-    color: Colors.light.accent,
-    fontFamily: Fonts.dm.bold,
-    fontSize: 12,
-  },
-
-  emptyState: {
-    alignItems: 'center',
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.line,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    gap: Spacing.xs,
-    padding: Spacing.four,
-  },
-  emptyGlyph: {
-    color: Colors.light.textSecondary,
-    fontSize: 22,
-  },
-
-  homeButtons: {
-    flexDirection: 'row',
-    gap: Spacing.xs + 1,
-    marginTop: Spacing.two + 3,
-  },
-  homeButton: {
-    flex: 1,
+    width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colors.primaryForeground,
+  },
+  reportsSection: { marginTop: 28, paddingHorizontal: 16 },
+  reportsHeading: {
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reportsTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
+  },
+  viewMatches: { paddingHorizontal: 0 },
+  reportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 16,
+  },
+  reportIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.pendingSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportTextWrap: { flex: 1, minWidth: 0 },
+  reportName: {
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
+  },
+  reportMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.mutedForeground,
   },
 });

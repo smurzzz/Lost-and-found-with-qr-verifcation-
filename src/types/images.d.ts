@@ -1,11 +1,10 @@
-// Static image imports (avif, webp, png, ...) — Expo/Metro handles these at
-// bundle time; this declaration gives TypeScript the `number` asset type.
-declare module '*.avif' {
+/** Static image imports (metro bundles jpg/png via @expo/metro-assets). */
+declare module '*.jpg' {
   const asset: number;
   export default asset;
 }
 
-declare module '*.webp' {
+declare module '*.png' {
   const asset: number;
   export default asset;
 }

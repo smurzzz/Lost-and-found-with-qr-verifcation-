@@ -1,261 +1,144 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
-import { generateTagId } from '@/lib/qr-tag';
-import { mockFoundItems } from '@/mocks/items';
-
-type QrTagParams = {
-  tagId?: string;
-  title?: string;
-  /** "{category} · {location}" line from Confirm Receipt. */
-  detail?: string;
-  /** Log Found Item passes the pieces instead. */
-  category?: string;
-  location?: string;
-  /** Dashboard "View QR Tag" resolves from the mock items. */
-  itemId?: string;
-};
-
 /**
- * Staff: QR Tag Ready (09-FUNCTIONALITY-PROMPT.md §10) — Phase 1 static
- * build. Terminal screen of both intake chains (Log Found Item and Confirm
- * Receipt generate the tag before landing here) and the dashboard's
- * "View QR Tag" action. Print is mocked until Phase 6 provides real codes.
+ * QR Tag (staff) — v3 port (QrTag): brand mark, big QR tile, item line,
+ * mono id pill, "Staff verified" footer, Print/Done buttons.
  */
 
-/** Stylized QR placeholder (mockup .fake-qr): navy grid, hollow middle column. */
-function FakeQr({ size = 158 }: { size?: number }) {
-  const cells = Array.from({ length: 9 }, (_, i) => i);
-  const hollow = [1, 4, 7]; // mockup nth-child(2/5/8): middle column
+import { useState } from 'react';
+import { router } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { PackageCheck, ShieldCheck } from 'lucide-react-native';
+import Svg, { Rect } from 'react-native-svg';
+
+import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
+import { BrandMark, Button3, Header } from '@/components/v3/core';
+import { V3Screen } from '@/components/v3/screen';
+import { generateTagId } from '@/lib/qr-tag';
+
+/** Decorative deterministic QR pattern (real QR lands in a later phase). */
+function QrPattern({ seed, size = 160 }: { seed: string; size?: number }) {
+  const cells = 13;
+  const cell = size / cells;
+  const rects = [] as React.ReactElement[];
+  let hash = 0;
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < cells; x++) {
+      hash = (hash * 1103515245 + 12345) >>> 0;
+      if (((hash >>> 16) & 1) === 1) {
+        rects.push(<Rect key={`${x}-${y}`} x={x * cell} y={y * cell} width={cell} height={cell} />);
+      }
+    }
+  }
   return (
-    <View style={[styles.fakeQr, { width: size, height: size, padding: (size * 7) / 158 }]}>
-      {cells.map((i) => (
-        <View key={i} style={[styles.fakeQrCell, hollow.includes(i) && styles.fakeQrCellHollow]} />
-      ))}
-    </View>
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill={Colors.primary}>
+      {rects}
+    </Svg>
   );
 }
 
-export default function StaffQrTagScreen() {
-  const params = useLocalSearchParams<QrTagParams>();
-  const [printed, setPrinted] = useState(false);
-
-  // Stable tag id for direct visits without one (dashboard itemId path).
-  const generatedId = useMemo(() => generateTagId(), []);
-  const fromItem = params.itemId ? mockFoundItems.find((i) => i.id === params.itemId) : null;
-
-  const title = params.title ?? fromItem?.title ?? null;
-  const detail =
-    params.detail ??
-    (params.category && params.location
-      ? `${params.category} · ${params.location}`
-      : fromItem
-        ? `${fromItem.category} · ${fromItem.location}`
-        : null);
-  const tagId = params.tagId ?? generatedId;
-  // Log Found Item path arrives from logging (not custody), so the success
-  // line matches the action that created the tag.
-  const successLine = params.category ? '✓ Item logged' : '✓ Receipt confirmed';
-
-  const handlePrint = () => {
-    // Phase 1 mock: real print/share lands with QR generation in Phase 6.
-    setPrinted(true);
-  };
+export default function QrTagScreen() {
+  const [tagId] = useState(() => generateTagId());
+  void PackageCheck;
 
   return (
-    <ThemedView style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Topbar (mockup .topbar): back, title, menu */}
-        <View style={styles.topbar}>
-          <ThemedText
-            accessibilityRole="button"
-            style={styles.backGlyph}
-            onPress={() => router.back()}
-          >
-            ‹
-          </ThemedText>
-          <ThemedText style={styles.topbarTitle}>QR Tag Ready</ThemedText>
-          <ThemedText style={styles.menuGlyph}>⋯</ThemedText>
+    <V3Screen>
+      <Header
+        title="QR Tag"
+        subtitle="Ready to print and attach"
+        onBack={() => router.push('/(staff)/dashboard')}
+      />
+      <View style={styles.body}>
+        <View style={[styles.tagCard, Shadows.float]}>
+          <BrandMark compact />
+          <View style={styles.qrFrame}>
+            <QrPattern seed={tagId} />
+          </View>
+          <Text style={styles.itemName}>Green water bottle</Text>
+          <Text style={styles.itemMeta}>Other · West Gym · Sep 24, 2026</Text>
+          <View style={styles.idPill}>
+            <Text style={styles.idText}>{tagId}</Text>
+          </View>
+          <View style={styles.verifiedRow}>
+            <ShieldCheck size={20} color={Colors.success} />
+            <Text style={styles.verifiedText}>Staff verified</Text>
+          </View>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {title && detail ? (
-            <>
-              <ThemedText style={styles.successLine}>{successLine}</ThemedText>
-
-              {/* QR card (mockup .qr-card) */}
-              <View style={styles.qrCard}>
-                <ThemedText style={styles.qrHeading}>⌾&nbsp; Official verification tag</ThemedText>
-                <FakeQr />
-                <ThemedText style={styles.qrTitle}>{title}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {detail}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  ID: {tagId}
-                </ThemedText>
-                <StatusBadge label="Available" tone="green" />
-              </View>
-
-              <Button label="Print Tag" variant="navy" onPress={handlePrint} />
-              {printed ? (
-                <ThemedText style={styles.printedNote}>
-                  ✓ Tag sent to the front-desk printer (Phase 1 mock).
-                </ThemedText>
-              ) : null}
-              <Button
-                label="Done"
-                variant="light"
-                onPress={() => router.replace('/(staff)/dashboard')}
-                style={styles.done}
-              />
-            </>
-          ) : (
-            <View style={styles.noTarget}>
-              <ThemedText type="small" themeColor="textSecondary">
-                No tag to show — log an item or confirm a receipt first, or open one from the Staff
-                Dashboard&apos;s View QR Tag action.
-              </ThemedText>
-              <Button
-                label="Back to Dashboard"
-                variant="light"
-                onPress={() => router.replace('/(staff)/dashboard')}
-                style={styles.done}
-              />
-            </View>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+        <View style={styles.actions}>
+          <View style={styles.action}>
+            <Button3 label="Print Tag" variant="outline" height={52} onPress={() => undefined} />
+          </View>
+          <View style={styles.action}>
+            <Button3 label="Done" height={52} onPress={() => router.push('/(staff)/dashboard')} />
+          </View>
+        </View>
+      </View>
+    </V3Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.light.lavender,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  topbar: {
+  body: { paddingHorizontal: 16 },
+  tagCard: {
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 24,
     alignItems: 'center',
-    flexDirection: 'row',
-    height: 46,
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
   },
-  backGlyph: {
-    color: Colors.light.text,
-    fontFamily: Fonts.dm.regular,
-    fontSize: 30,
-    lineHeight: 34,
-    minHeight: 48,
-    minWidth: 48,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-  },
-  topbarTitle: {
-    fontFamily: Fonts.jakarta.bold,
-    fontSize: 14,
-  },
-  menuGlyph: {
-    color: Colors.light.text,
-    fontSize: 18,
-    minHeight: 48,
-    minWidth: 48,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-  },
-
-  scrollContent: {
-    paddingBottom: Spacing.five,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.half,
-  },
-  successLine: {
-    color: Colors.light.green,
-    fontFamily: Fonts.dm.bold,
-    fontSize: 13,
-    marginHorizontal: Spacing.half,
-    marginTop: Spacing.two,
-  },
-
-  // QR card (mockup .qr-card)
-  qrCard: {
+  qrFrame: {
+    marginVertical: 28,
+    width: 208,
+    height: 208,
+    borderRadius: 16,
+    borderWidth: 8,
+    borderColor: Colors.primary,
     alignItems: 'center',
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.line,
-    borderRadius: 15,
-    borderWidth: 1,
-    gap: Spacing.xs + 1,
-    marginVertical: Spacing.four,
-    padding: Spacing.four,
-    ...Shadows.card,
-  },
-  qrHeading: {
-    color: '#676891',
-    fontFamily: Fonts.dm.bold,
-    fontSize: 12,
-    marginBottom: Spacing.half,
-  },
-  qrTitle: {
-    fontFamily: Fonts.jakarta.bold,
-    fontSize: 15,
-    letterSpacing: 0,
-    marginTop: Spacing.xs,
-  },
-
-  // Fake QR (mockup .fake-qr.large)
-  fakeQr: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 2,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: (158 * 6) / 158,
     justifyContent: 'center',
-    marginVertical: Spacing.two,
+    overflow: 'hidden',
   },
-  fakeQrCell: {
-    backgroundColor: Colors.light.text,
-    borderRadius: 2,
-    height: '29%',
-    width: '29%',
+  itemName: {
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
   },
-  fakeQrCellHollow: {
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.text,
-    borderWidth: 5,
+  itemMeta: {
+    marginTop: 8,
+    fontSize: 14,
+    color: Colors.mutedForeground,
   },
-
-  printedNote: {
-    color: Colors.light.green,
-    fontSize: 12,
-    marginTop: Spacing.two,
-    textAlign: 'center',
+  idPill: {
+    marginTop: 16,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primarySoft,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  done: {
-    marginTop: Spacing.two,
+  idText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
   },
-
-  // No-target fallback
-  noTarget: {
-    backgroundColor: Colors.light.surface,
-    borderColor: Colors.light.line,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    gap: Spacing.two,
-    marginTop: Spacing.three,
-    padding: Spacing.three,
+  verifiedRow: {
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 20,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
+  verifiedText: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+    color: Colors.success,
+  },
+  actions: {
+    marginTop: 20,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  action: { flex: 1 },
 });

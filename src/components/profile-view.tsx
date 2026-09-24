@@ -1,13 +1,15 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Icon } from '@/components/ui/icon';
+import { AppTopbar } from '@/components/ui/app-topbar';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 type ProfileRow = {
-  glyph: string;
+  icon: React.ComponentProps<typeof Icon>['name'];
   label: string;
   danger?: boolean;
   onPress?: () => void;
@@ -15,9 +17,10 @@ type ProfileRow = {
 
 type ProfileViewProps = {
   name: string;
-  initials: string;
   role: 'Student' | 'Staff';
-  email: string;
+  /** Avatar image; falls back to initials when omitted. */
+  avatar?: ImageSourcePropType;
+  initials: string;
   rows: ProfileRow[];
   onLogout: () => void;
   onBack: () => void;
@@ -26,15 +29,16 @@ type ProfileViewProps = {
 };
 
 /**
- * Shared profile screen (mockup screen 13, "Staff + Student"): big initials
- * avatar, name, role badge, email, settings rows, brand footer. The nav is
- * injected so both route groups reuse the identical layout.
+ * Shared profile screen (profile.webp, "Staff + Student"): big circular
+ * avatar (photo or initials), name, orange-soft role badge with icon,
+ * rounded settings rows with line icons and chevrons. The nav is injected
+ * so both route groups reuse the identical layout.
  */
 export function ProfileView({
   name,
-  initials,
   role,
-  email,
+  avatar,
+  initials,
   rows,
   onLogout,
   onBack,
@@ -43,69 +47,64 @@ export function ProfileView({
   return (
     <ThemedView style={styles.screen}>
       <View style={styles.safeArea}>
-        {/* Topbar (mockup .topbar): back, title, menu */}
-        <View style={styles.topbar}>
-          <ThemedText accessibilityRole="button" style={styles.backGlyph} onPress={onBack}>
-            ‹
-          </ThemedText>
-          <ThemedText style={styles.topbarTitle}>Profile</ThemedText>
-          <ThemedText style={styles.menuGlyph}>⋯</ThemedText>
-        </View>
+        <AppTopbar title="Profile" right="bell" onBack={onBack} />
 
         <View style={styles.content}>
-          {/* Identity (mockup .profile) */}
-          <View style={styles.identity}>
-            <View style={styles.bigAvatar}>
-              <ThemedText style={styles.bigAvatarText}>{initials}</ThemedText>
+          {/* Identity card (mockup: white card wrapping avatar + rows) */}
+          <View style={styles.card}>
+            <View style={styles.identity}>
+              <View style={styles.avatarWrap}>
+                {avatar ? (
+                  <Image source={avatar} style={styles.avatarPhoto} />
+                ) : (
+                  <ThemedText style={styles.avatarText}>{initials}</ThemedText>
+                )}
+              </View>
+              <ThemedText style={styles.name}>{name}</ThemedText>
+              <View style={styles.roleBadge}>
+                {role === 'Student' ? (
+                  <Icon name="book-open" size={14} color="#a16b1d" />
+                ) : (
+                  <Icon name="briefcase" size={14} color="#a16b1d" />
+                )}
+                <ThemedText style={styles.roleText}>{role}</ThemedText>
+              </View>
             </View>
-            <ThemedText style={styles.name}>{name}</ThemedText>
-            <StatusBadge label={role} tone="navy" />
-            <ThemedText type="small" themeColor="textSecondary" style={styles.email}>
-              {email}
-            </ThemedText>
-          </View>
 
-          {/* Settings rows (mockup .profile-list) */}
-          <View style={styles.list}>
-            {rows.map((row) => (
+            <View style={styles.divider} />
+
+            {/* Settings rows (mockup .profile-list) */}
+            <View style={styles.list}>
+              {rows.map((row) => (
+                <Pressable
+                  key={row.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={row.label}
+                  onPress={row.onPress}
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+                >
+                  <Icon
+                    name={row.icon}
+                    size={20}
+                    color={row.danger ? Colors.light.danger : 'text'}
+                  />
+                  <ThemedText style={[styles.rowLabel, row.danger && styles.rowDanger]}>
+                    {row.label}
+                  </ThemedText>
+                  <Icon name="chevron-right" size={18} color="#8f91ab" />
+                </Pressable>
+              ))}
               <Pressable
-                key={row.label}
                 accessibilityRole="button"
-                accessibilityLabel={row.label}
-                onPress={row.onPress}
+                accessibilityLabel="Log Out"
+                onPress={onLogout}
                 style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
               >
-                <ThemedText style={[styles.rowGlyph, row.danger && styles.rowDanger]}>
-                  {row.glyph}
-                </ThemedText>
-                <ThemedText style={[styles.rowLabel, row.danger && styles.rowDanger]}>
-                  {row.label}
-                </ThemedText>
-                <ThemedText style={[styles.rowChevron, row.danger && styles.rowDanger]}>
-                  ›
-                </ThemedText>
+                <Icon name="log-out" size={20} color={Colors.light.danger} />
+                <ThemedText style={[styles.rowLabel, styles.rowDanger]}>Log Out</ThemedText>
+                <Icon name="chevron-right" size={18} color="#8f91ab" />
               </Pressable>
-            ))}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Log Out"
-              onPress={onLogout}
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-            >
-              <ThemedText style={[styles.rowGlyph, styles.rowDanger]}>×</ThemedText>
-              <ThemedText style={[styles.rowLabel, styles.rowDanger]}>Log Out</ThemedText>
-              <ThemedText style={[styles.rowChevron, styles.rowDanger]}>›</ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Brand footer (mockup .profile-footer) */}
-          <View style={styles.footer}>
-            <ThemedText style={styles.footerBrand}>
-              ✓&nbsp;&nbsp;claim<ThemedText style={styles.footerAccent}>it</ThemedText>
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.footerTagline}>
-              Trust made simple.
-            </ThemedText>
+            </View>
           </View>
         </View>
 
@@ -123,124 +122,97 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  topbar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    height: 46,
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
-  },
-  backGlyph: {
-    color: Colors.light.text,
-    fontFamily: Fonts.dm.regular,
-    fontSize: 30,
-    lineHeight: 34,
-    minHeight: 48,
-    minWidth: 48,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-  },
-  topbarTitle: {
-    fontFamily: Fonts.jakarta.bold,
-    fontSize: 14,
-  },
-  menuGlyph: {
-    color: Colors.light.text,
-    fontSize: 18,
-    minHeight: 48,
-    minWidth: 48,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-  },
 
   content: {
     flex: 1,
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
   },
 
-  // Identity (mockup .profile)
+  // Identity card (mockup: one white card containing avatar + rows)
+  card: {
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.line,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    paddingBottom: Spacing.three,
+    ...Shadows.card,
+  },
   identity: {
     alignItems: 'center',
     gap: Spacing.two,
-    paddingBottom: Spacing.four,
+    paddingBottom: Spacing.three + 2,
     paddingTop: Spacing.four,
   },
-  bigAvatar: {
+  avatarWrap: {
     alignItems: 'center',
-    backgroundColor: Colors.light.text,
+    backgroundColor: Colors.light.backgroundSelected,
+    borderColor: Colors.light.line,
     borderRadius: Radius.pill,
-    height: 70,
+    borderWidth: 1,
+    height: 96,
     justifyContent: 'center',
-    marginBottom: Spacing.two,
-    width: 70,
+    width: 96,
   },
-  bigAvatarText: {
-    color: '#ffffff',
+  avatarText: {
+    color: '#6c6dab',
     fontFamily: Fonts.jakarta.extrabold,
-    fontSize: 19,
+    fontSize: 30,
+  },
+  avatarPhoto: {
+    borderRadius: Radius.pill,
+    height: '100%',
+    width: '100%',
   },
   name: {
     fontFamily: Fonts.jakarta.bold,
-    fontSize: 17,
-    letterSpacing: 0,
-    marginBottom: Spacing.half,
+    fontSize: 21,
+    letterSpacing: -0.4,
   },
-  email: {
-    marginTop: Spacing.half,
+  roleBadge: {
+    alignItems: 'center',
+    backgroundColor: Colors.light.orangeSoft,
+    borderRadius: Radius.pill,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  roleText: {
+    color: '#a16b1d',
+    fontFamily: Fonts.dm.bold,
+    fontSize: 13,
+  },
+  divider: {
+    backgroundColor: Colors.light.line,
+    height: 1,
+    marginHorizontal: Spacing.three,
   },
 
   // Settings rows (mockup .profile-list)
   list: {
     gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
   },
   row: {
     alignItems: 'center',
     backgroundColor: Colors.light.surface,
     borderColor: Colors.light.line,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: Spacing.two + 1,
-    minHeight: 48,
-    padding: Spacing.two + 5,
-  },
-  rowGlyph: {
-    color: Colors.light.text,
-    fontSize: 14,
-    width: 20,
+    gap: Spacing.two + 3,
+    minHeight: 56,
+    paddingHorizontal: Spacing.two + 4,
   },
   rowLabel: {
     color: Colors.light.text,
     flex: 1,
+    fontFamily: Fonts.dm.semibold,
     fontSize: 14,
-  },
-  rowChevron: {
-    color: Colors.light.textSecondary,
-    fontSize: 16,
   },
   rowDanger: {
     color: Colors.light.danger,
-  },
-
-  // Brand footer (mockup .profile-footer)
-  footer: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: Spacing.four + 10,
-    paddingTop: Spacing.five,
-  },
-  footerBrand: {
-    color: '#7374a2',
-    fontFamily: Fonts.jakarta.extrabold,
-    fontSize: 13,
-    letterSpacing: -0.3,
-  },
-  footerAccent: {
-    color: Colors.light.orange,
-  },
-  footerTagline: {
-    fontSize: 11,
-    marginTop: Spacing.half,
   },
 });

@@ -14,21 +14,21 @@
 
 ## Phase 1 — UI Screens (all 13, static with mock data)
 
-| Screen                | Flow    | Status | Notes                                                        |
-| --------------------- | ------- | ------ | ------------------------------------------------------------ |
-| 01 Login              | Student | ✅     | SSO button → student home; demo staff sign-in → dashboard    |
-| 02 Student Home       | Student | ✅     | live search + category filters, local item photos, dismissal |
-| 03 Report Lost Item   | Student | ✅     | validated form, category/date sheets, image picker           |
-| 04 Report Found Item  | Student | ✅     | pending drop-off notice + confirmation state                 |
-| 05 Possible Matches   | Student | ✅     | real match cards, dismiss, empty state                       |
-| 06 Claim Verification | Student | ✅     | passes tapped item, char counter, claim confirmation         |
-| 07 Staff Dashboard    | Staff   | ✅     | summary cards, 3 working tabs, staff cards, log-found CTA    |
-| 08 Log Found Item     | Staff   | ✅     | validated intake form → generates CI-XXXXXX tag              |
-| 09 Confirm Receipt    | Staff   | ✅     | resolves tapped report/item, generates tag on confirm        |
-| 10 QR Tag Ready       | Staff   | ✅     | tag card + QR grid; mock print; shared `lib/qr-tag`          |
-| 11 Scan to Release    | Staff   | ✅     | animated viewfinder; camera simulated until Phase 6          |
-| 12 Audit Log          | Staff   | ✅     | lifecycle timeline with working stage filters                |
-| 13 Profile            | Both    | ✅     | shared `ProfileView`, per-role identity + nav, mock logout   |
+| Screen                | Flow    | Status | Notes                                                                                                                                   |
+| --------------------- | ------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 Login              | Student | ✅     | SSO button → student home; demo staff sign-in → dashboard                                                                               |
+| 02 Student Home       | Student | ✅     | live search + category filters, local item photos, dismissal; redesigned to v3 mockup (navy/blue/orange, #EEF1F8 bg, compact Mine-card) |
+| 03 Report Lost Item   | Student | ✅     | validated form, category/date sheets, image picker                                                                                      |
+| 04 Report Found Item  | Student | ✅     | pending drop-off notice + confirmation state                                                                                            |
+| 05 Possible Matches   | Student | ✅     | real match cards, dismiss, empty state                                                                                                  |
+| 06 Claim Verification | Student | ✅     | passes tapped item, char counter, claim confirmation                                                                                    |
+| 07 Staff Dashboard    | Staff   | ✅     | summary cards, 3 working tabs, staff cards, log-found CTA                                                                               |
+| 08 Log Found Item     | Staff   | ✅     | validated intake form → generates CI-XXXXXX tag                                                                                         |
+| 09 Confirm Receipt    | Staff   | ✅     | resolves tapped report/item, generates tag on confirm                                                                                   |
+| 10 QR Tag Ready       | Staff   | ✅     | tag card + QR grid; mock print; shared `lib/qr-tag`                                                                                     |
+| 11 Scan to Release    | Staff   | ✅     | animated viewfinder; camera simulated until Phase 6                                                                                     |
+| 12 Audit Log          | Staff   | ✅     | lifecycle timeline with working stage filters                                                                                           |
+| 13 Profile            | Both    | ✅     | shared `ProfileView`, per-role identity + nav, mock logout                                                                              |
 
 ## Milestone 2 — Auth & Roles
 
@@ -119,7 +119,8 @@
 
 ## Weekly log
 
-| Week of    | Summary                                                                                                                                                                                                                                                                                                                                                   | Next steps                                                                                                                             |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-22 | Phase 0 (0.1–0.3, 0.5–0.7) complete on Expo SDK 57: tooling verified, project root scaffolded, deps installed, ESLint/Prettier/husky set up, `.env`/`.env.example`/`app.config.ts` wired, expo-doctor 21/21, Android bundle exports, dev server verified, committed                                                                                       | 0.4: create Supabase + Clerk projects with real keys → fill `.env`; set up EAS project (`eas init`); push repo to remote; then Phase 1 |
-| 2026-09-23 | Phase 1 (all 13 UI screens) complete with mock data: design system (tokens, fonts, shared components), student flow (login → home → report lost/found → matches → claim), staff flow (dashboard → log found → confirm receipt → QR tag → scan → audit), shared profile; every screen tsc/ESLint-clean and interaction-verified live; committed per screen | Phase 2+ : real auth (0.4 keys), data layer, camera scanning, matching engine per 08-PHASE-PLAN.md                                     |
+| Week of    | Summary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Next steps                                                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-22 | Phase 0 (0.1–0.3, 0.5–0.7) complete on Expo SDK 57: tooling verified, project root scaffolded, deps installed, ESLint/Prettier/husky set up, `.env`/`.env.example`/`app.config.ts` wired, expo-doctor 21/21, Android bundle exports, dev server verified, committed                                                                                                                                                                                                                                                                | 0.4: create Supabase + Clerk projects with real keys → fill `.env`; set up EAS project (`eas init`); push repo to remote; then Phase 1 |
+| 2026-09-23 | Phase 1 (all 13 UI screens) complete with mock data: design system (tokens, fonts, shared components), student flow (login → home → report lost/found → matches → claim), staff flow (dashboard → log found → confirm receipt → QR tag → scan → audit), shared profile; every screen tsc/ESLint-clean and interaction-verified live; committed per screen                                                                                                                                                                          | Phase 2+ : real auth (0.4 keys), data layer, camera scanning, matching engine per 08-PHASE-PLAN.md                                     |
+| 2026-09-24 | Student Home redesigned to the v3 HTML mockup (navy `#121F3E` / blue / orange `#F97316` over `#EEF1F8`): navy topbar, focus-ring search, rounded-xl category chips, compact item cards (96px thumbnail + 3 metadata rows + Mine/Not-mine). Brand tokens added additively to `theme.ts`; shared `ItemCard`/`CategoryChip`/`BottomNav` restyled to match — nav now navy-active with an inert **Alerts** tab (replaces Messages; staff handler type unions updated to `alerts`). No release-flow or matching logic touched (UI-only). | Verify redesign live on device; port the same language to remaining screens if desired                                                 |

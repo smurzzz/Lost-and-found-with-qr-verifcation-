@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 
 export type StatusTone = 'neutral' | 'amber' | 'green' | 'navy' | 'danger';
@@ -8,6 +9,8 @@ export type StatusTone = 'neutral' | 'amber' | 'green' | 'navy' | 'danger';
 type StatusBadgeProps = {
   label: string;
   tone?: StatusTone;
+  /** Leading Feather line icon (mockup badges: ⌕ Possible Match, ⏱ Pending). */
+  icon?: React.ComponentProps<typeof Icon>['name'];
 };
 
 const tones: Record<StatusTone, { bg: string; fg: string }> = {
@@ -20,12 +23,18 @@ const tones: Record<StatusTone, { bg: string; fg: string }> = {
 
 /**
  * Single source of status styling (03-CODE-STANDARDS.md §4): color is always
- * paired with a text label. Maps to item/claim/report statuses app-wide.
+ * paired with a text label. V2 mockups show pill badges with a leading line
+ * icon; icon stays optional for compact list usages.
  */
-export function StatusBadge({ label, tone = 'neutral' }: StatusBadgeProps) {
+export function StatusBadge({ label, tone = 'neutral', icon }: StatusBadgeProps) {
   const t = tones[tone];
   return (
     <View style={[styles.badge, { backgroundColor: t.bg }]}>
+      {icon ? (
+        <View style={styles.iconWrap}>
+          <Icon name={icon} size={13} color={t.fg} />
+        </View>
+      ) : null}
       <ThemedText style={[styles.label, { color: t.fg }]}>{label}</ThemedText>
     </View>
   );
@@ -33,14 +42,20 @@ export function StatusBadge({ label, tone = 'neutral' }: StatusBadgeProps) {
 
 const styles = StyleSheet.create({
   badge: {
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    borderRadius: Radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  iconWrap: {
+    paddingTop: 1,
   },
   label: {
     fontFamily: Fonts.dm.bold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 0.2,
   },
 });

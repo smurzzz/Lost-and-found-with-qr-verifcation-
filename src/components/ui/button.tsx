@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 export type ButtonVariant = 'navy' | 'orange' | 'green' | 'light';
@@ -9,8 +10,12 @@ type ButtonProps = {
   label: string;
   onPress?: () => void;
   variant?: ButtonVariant;
-  /** Leading icon: emoji or glyph, per the mockups (✓, 🔍, …). */
+  /** Leading glyph (legacy emoji/glyph buttons, e.g. login). */
   icon?: string;
+  /** Leading Feather line icon (2025-09 mockup buttons: check-circle…). */
+  iconName?: React.ComponentProps<typeof Icon>['name'];
+  /** Full pill radius (2025-09 mockups). Defaults to the classic 12px. */
+  pill?: boolean;
   disabled?: boolean;
   /** Per 09-FUNCTIONALITY-PROMPT.md: in-flight mutations disable the trigger. */
   loading?: boolean;
@@ -30,6 +35,8 @@ export function Button({
   onPress,
   variant = 'navy',
   icon,
+  iconName,
+  pill = false,
   disabled,
   loading,
   style,
@@ -47,11 +54,13 @@ export function Button({
         styles.base,
         { backgroundColor: v.bg },
         v.bordered && styles.bordered,
+        pill && styles.pill,
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
       ]}
     >
+      {iconName ? <Icon name={iconName} size={18} color={v.fg} /> : null}
       {icon ? <ThemedText style={[styles.icon, { color: v.fg }]}>{icon}</ThemedText> : null}
       <ThemedText style={[styles.label, { color: v.fg }]}>
         {loading ? 'Please wait…' : label}
@@ -69,6 +78,10 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: 'center',
     width: '100%',
+  },
+  pill: {
+    borderRadius: Radius.pill,
+    gap: Spacing.two + 1,
   },
   bordered: {
     borderWidth: 1,
