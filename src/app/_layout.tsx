@@ -27,6 +27,7 @@ import { tokenCache } from '@clerk/expo/token-cache';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { getEnv } from '@/lib/env';
+import { SessionProvider } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -89,12 +90,14 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="(student)" options={{ headerShown: false }} />
-          <Stack.Screen name="(staff)" options={{ headerShown: false }} />
-        </Stack>
+        <SessionProvider>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="(student)" options={{ headerShown: false }} />
+            <Stack.Screen name="(staff)" options={{ headerShown: false }} />
+          </Stack>
+        </SessionProvider>
       </QueryClientProvider>
     </AuthProvider>
   );

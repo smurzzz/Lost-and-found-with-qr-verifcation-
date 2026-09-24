@@ -70,6 +70,18 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | AL-02 | Timeline expands with correct chronological order    | ⏳     |
 | AL-03 | Export/print (if implemented) produces accurate data | ⏳     |
 
+### Auth & Roles (Phase 3)
+
+| ID      | Case                                                                                                                  | Status |
+| ------- | --------------------------------------------------------------------------------------------------------------------- | ------ |
+| AUTH-01 | Student logs in with a real school-domain Google account → new users row (role `student`), routed to `(student)/home` | ⏳     |
+| AUTH-02 | Staff member (pre-provisioned `users` row) logs in → routed to `(staff)/dashboard`                                    | ⏳     |
+| AUTH-03 | Student cannot reach any `(staff)` route (deep link or nav) — RoleGuard bounces to student home                       | ⏳     |
+| AUTH-04 | Student logs in with a non-school-domain google account → blocked with the domain message                             | ⏳     |
+| AUTH-05 | New staff email with no provisioned row → "not provisioned" error, no row created                                     | ⏳     |
+
+> Gate prerequisites: Supabase JWT issuer added for Clerk, Clerk `supabase` JWT template exists, and migration `20250924000002_phase3_auth.sql` pushed (`users.id` → `text`). See 07-PROGRESS-TRACKER.md block/open-questions.
+
 ## 5. Non-functional checks
 
 | ID    | Case                                                                               | Status |

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useSSO } from '@clerk/expo';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -8,15 +11,62 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { getEnv } from '@/lib/env';
+import { DomainError, StaffNotProvisionedError } from '@/lib/sync-user';
+import { useSession } from '@/lib/session';
 
 /**
  * Login / Onboarding (09-FUNCTIONALITY-PROMPT.md §1).
- * Phase 1: UI only — "Continue with SSO" navigates straight to Student Home
- * with mock data (08-PHASE-PLAN.md §1.2). Real Clerk SSO lands in Phase 3.
+ * Phase 3: "Continue with SSO" runs real Clerk SSO; after sign-in the
+ * SessionProvider syncs the users row and the role guard routes to the
+ * correct role's home. With Clerk unconfigured (pre-task-0.4) the buttons
+ * fall back to the Phase 1 demo identities so the app stays clickable.
  * Visuals follow assets/login.webp and the prototype CSS (.login styles).
  */
 export default function LoginScreen() {
+  const { startSSOFlow } = useSSO();
+  const { isDemo, syncError, setDemoRole } = useSession();
   const clerkConfigured = Boolean(getEnv().clerkPublishableKey);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSso() {
+    setError(null);
+    setBusy(true);
+    try {
+      if (!clerkConfigured || !startSSOFlow) {
+        // Demo fallback — no keys yet.
+        setDemoRole?.('student');
+        router.replace('/(student)/home');
+        return;
+      }
+      const result = await startSSOFlow({ strategy: 'oauth_google' });
+      if (result?.createdSessionId && result?.setActive) {
+        // Activate the Clerk session; SessionProvider then syncs the users
+        // row and applies the Supabase token (authBridge), and the role
+        // guard routes from "/" to the right home.
+        await result.setActive({ session: result.createdSessionId });
+        router.replace('/');
+      }
+    } catch (err) {
+      if (err instanceof DomainError) {
+        setError(err.message);
+      } else if (err instanceof StaffNotProvisionedError) {
+        setError(err.message);
+      } else {
+        setError('Sign-in failed. Please try again.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleStaffDemo() {
+    setError(null);
+    if (isDemo) {
+      setDemoRole?.('staff');
+      router.replace('/(staff)/dashboard');
+    }
+  }
 
   return (
     <ThemedView style={styles.screen}>
@@ -43,22 +93,36 @@ export default function LoginScreen() {
           <SecureQrCard />
 
           <Button
-            label="Continue with SSO"
+            label={busy ? 'Signing in…' : 'Continue with SSO'}
             icon="✓"
             variant="navy"
-            onPress={() => router.replace('/(student)/home')}
-          />
-
-          <Button
-            label="Staff sign in (demo)"
-            variant="light"
-            onPress={() => router.replace('/(staff)/dashboard')}
+            onPress={handleSso}
+            disabled={busy}
           />
 
           {!clerkConfigured && (
+            <Button
+              label="Staff sign in (demo)"
+              variant="light"
+              onPress={handleStaffDemo}
+              disabled={busy}
+            />
+          )}
+
+          {error ? (
+            <ThemedText type="small" style={styles.errorNote}>
+              {error}
+            </ThemedText>
+          ) : syncError ? (
+            <ThemedText type="small" style={styles.errorNote}>
+              {syncError}
+            </ThemedText>
+          ) : null}
+
+          {!clerkConfigured && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.devNote}>
-              Phase 1 preview — Clerk keys not set yet (task 0.4), so SSO goes straight to the mock
-              Student Home.
+              Demo mode — Clerk keys not set yet (task 0.4). SSO signs in with the demo identities
+              until then.
             </ThemedText>
           )}
 
@@ -244,6 +308,13 @@ const styles = StyleSheet.create({
   devNote: {
     marginTop: Spacing.two,
     textAlign: 'center',
+  },
+
+  errorNote: {
+    color: Colors.light.danger ?? '#c0392b',
+    marginTop: Spacing.two,
+    textAlign: 'center',
+    fontFamily: Fonts.dm.semibold,
   },
 
   // Legal

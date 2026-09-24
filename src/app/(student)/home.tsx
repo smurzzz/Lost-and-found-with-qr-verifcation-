@@ -13,9 +13,15 @@ import { Button3, StatusPill } from '@/components/v3/core';
 import { Feed } from '@/components/v3/feed';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { initialsOf, useSession } from '@/lib/session';
 import { tabRoute } from '@/lib/v3-nav';
 
 export default function StudentHomeScreen() {
+  const { dbUser, clerkUser } = useSession();
+  const name = dbUser?.name ?? clerkUser?.name ?? 'Alex Morgan';
+  const firstName = name.trim().split(/\s+/)[0] || name;
+  const initials = initialsOf(name);
+
   return (
     <V3Screen
       nav={
@@ -28,11 +34,11 @@ export default function StudentHomeScreen() {
     >
       <View style={styles.topBar}>
         <View style={styles.topBarText}>
-          <Text style={styles.greeting}>Good morning, Alex</Text>
+          <Text style={styles.greeting}>Good morning, {firstName}</Text>
           <Text style={styles.heading}>Find your lost item.</Text>
         </View>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>AM</Text>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
       </View>
 

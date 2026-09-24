@@ -1,9 +1,20 @@
 import { Redirect } from 'expo-router';
 
+import { useSession } from '@/lib/session';
+
 /**
- * Entry route: Phase 1 click-through starts at Login (08-PHASE-PLAN.md §1.2).
- * Phase 3 replaces this with real session-based routing via Clerk.
+ * Entry route (Phase 3): resolves the signed-in user's role and routes to the
+ * correct home. Not signed in / no users row → /login. Splash stays up until
+ * the session settles so there's no flash of the wrong screen.
  */
 export default function IndexScreen() {
-  return <Redirect href="/login" />;
+  const { isLoaded, isSignedIn, role } = useSession();
+
+  if (!isLoaded) {
+    return null;
+  }
+  if (!isSignedIn || !role) {
+    return <Redirect href="/login" />;
+  }
+  return <Redirect href={role === 'staff' ? '/(staff)/dashboard' : '/(student)/home'} />;
 }

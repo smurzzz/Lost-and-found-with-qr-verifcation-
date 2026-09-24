@@ -11,10 +11,20 @@ import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { initialsOf, useSession } from '@/lib/session';
 import { tabRoute } from '@/lib/v3-nav';
 
 export default function StaffProfileScreen() {
   const role = 'staff' as const;
+  const { dbUser, clerkUser, isDemo, setDemoRole, signOut } = useSession();
+
+  const name = dbUser?.name ?? clerkUser?.name ?? 'Maya Chen';
+  const initials = initialsOf(name);
+
+  async function handleLogout() {
+    await signOut();
+    router.replace('/login');
+  }
 
   return (
     <V3Screen
@@ -29,21 +39,29 @@ export default function StaffProfileScreen() {
       <Header title="Profile" />
       <View style={styles.body}>
         <View style={[styles.avatar, Shadows.brand]}>
-          <Text style={styles.avatarText}>AM</Text>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
-        <Text style={styles.name}>Alex Morgan</Text>
+        <Text style={styles.name}>{name}</Text>
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>staff</Text>
         </View>
 
-        <View style={styles.toggle}>
-          <Pressable style={styles.toggleButton} onPress={() => router.push('/(student)/home')}>
-            <Text style={styles.toggleText}>Student</Text>
-          </Pressable>
-          <View style={[styles.toggleButton, styles.toggleActive]}>
-            <Text style={[styles.toggleText, styles.toggleTextActive]}>Staff preview</Text>
+        {isDemo && (
+          <View style={styles.toggle}>
+            <Pressable
+              style={styles.toggleButton}
+              onPress={() => {
+                setDemoRole?.('student');
+                router.replace('/(student)/home');
+              }}
+            >
+              <Text style={styles.toggleText}>Student</Text>
+            </Pressable>
+            <View style={[styles.toggleButton, styles.toggleActive]}>
+              <Text style={[styles.toggleText, styles.toggleTextActive]}>Staff preview</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={[styles.settings, Shadows.card]}>
           <View style={styles.settingsRow}>
@@ -62,7 +80,7 @@ export default function StaffProfileScreen() {
           height={52}
           style={styles.logout}
           textStyle={styles.logoutText}
-          onPress={() => router.push('/login')}
+          onPress={handleLogout}
         />
       </View>
     </V3Screen>
