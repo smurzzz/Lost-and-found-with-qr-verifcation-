@@ -4,7 +4,16 @@
  * Uploads a local image (from expo-image-picker) into the public
  * `item-photos` bucket under the signed-in user's folder and returns the
  * public URL to store in items.photo_url / lost_reports.photo_url.
+ *
+ * Reading the file: React Native's fetch() silently returns an empty body
+ * for content:// URIs, so on native we read base64 via expo-file-system's
+ * legacy API and decode to bytes; on web we fetch() the blob URL normally.
  */
+
+import { Buffer } from 'buffer';
+import { Platform } from 'react-native';
+
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { supabase } from '@/lib/supabase';
 import { getSupabaseAccessToken } from '@/lib/token';
@@ -32,11 +41,21 @@ function extensionFor(mimeType: string): string {
   }
 }
 
+async function readImageBytes(uri: string): Promise<Uint8Array> {
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return new Uint8Array(Buffer.from(base64, 'base64'));
+}
+
 /**
- * Upload a picked image and return its public URL.
- * Reads the file with fetch() (works on web + Expo Go), then uploads via the
- * storage SDK. The object path is namespaced by the caller's Clerk sub so the
- * bucket RLS ("first folder = auth.jwt()->>'sub'") accepts it.
+ * Upload a picked image and return its public URL. The object path is
+ * namespaced by the caller's Clerk sub so the bucket RLS ("first folder =
+ * auth.jwt()->>'sub'") accepts it.
  */
 export async function uploadItemPhoto(input: {
   localUri: string;
@@ -51,12 +70,14 @@ export async function uploadItemPhoto(input: {
     throw new StorageError('Your session has ended. Please sign in again.');
   }
 
-  let bytes: ArrayBuffer;
+  let bytes: Uint8Array;
   try {
-    const response = await fetch(input.localUri);
-    bytes = await response.arrayBuffer();
+    bytes = await readImageBytes(input.localUri);
   } catch {
     throw new StorageError('Could not read the picked image.');
+  }
+  if (bytes.byteLength < 1000) {
+    throw new StorageError('The picked image looks empty — please retake or reselect the photo.');
   }
 
   const mimeType = guessMimeType(input.localUri);
