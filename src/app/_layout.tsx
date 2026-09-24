@@ -60,6 +60,7 @@ function AppStack() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="sso-callback" options={{ headerShown: false }} />
       <Stack.Screen name="(student)" options={{ headerShown: false }} />
       <Stack.Screen name="(staff)" options={{ headerShown: false }} />
     </Stack>

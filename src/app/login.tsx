@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSSO } from '@clerk/expo';
+import { useClerk, useSSO } from '@clerk/expo';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,10 +23,23 @@ import { useSession } from '@/lib/session';
  * Visuals follow assets/login.webp and the prototype CSS (.login styles).
  */
 export default function LoginScreen() {
-  const { isDemo, isSignedIn, syncError, setDemoRole } = useSession();
+  const { isDemo, isLoaded, isSignedIn, syncError, setDemoRole } = useSession();
   const { startSSOFlow } = useSSO();
+  const clerk = useClerk();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Web uses the redirect (full-page) OAuth flow instead of a popup: Google's
+  // COOP headers block the popup `window.closed` handshake, so the browser
+  // navigates to Google and lands back on /sso-callback, which completes the
+  // session and routes. Native keeps the expo-web-browser flow via useSSO.
+  const isWeb = Platform.OS === 'web';
+
+  useEffect(() => {
+    if (isWeb && isLoaded && isSignedIn) {
+      router.replace('/');
+    }
+  }, [isWeb, isLoaded, isSignedIn]);
 
   async function handleGoogle() {
     setError(null);
@@ -45,6 +58,17 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
+      if (isWeb) {
+        // Full-page redirect to Google; /sso-callback completes the flow.
+        // `client.signIn` is the classic resource carrying the redirect flow.
+        await clerk.client?.signIn.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/sso-callback',
+          redirectUrlComplete: '/',
+        });
+        // The browser navigates away — nothing after this runs on success.
+        return;
+      }
       const { createdSessionId, setActive, authSessionResult } = await startSSOFlow({
         strategy: 'oauth_google',
       });
