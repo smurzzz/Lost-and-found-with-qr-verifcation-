@@ -3,18 +3,20 @@
  * report-lost and report-found; differs by type copy and submit target.
  * §1.2: the form validates on submit and shows inline per-field errors;
  * a valid submit calls onSubmit(values) — screens decide what to write.
- * Phase 5: found reports add an "Item name" field (items.title is NOT NULL),
- * and the submit button reflects async busy/error state.
+ * Phase 6: fully functional inputs — photo (camera/gallery, uploaded on
+ * submit by the screen), category dropdown, native calendar date picker.
  */
 
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ChevronDown, CircleHelp, Clock3, ImagePlus, MapPin } from 'lucide-react-native';
+import { CircleHelp } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius } from '@/constants/design';
 import { Button3, FormField, Header, TextArea3 } from '@/components/v3/core';
 import { V3Screen } from '@/components/v3/screen';
+import { CategorySelect, DatePickerField } from '@/components/v3/pickers';
+import { PhotoPicker, type PickedPhoto } from '@/components/v3/photo-picker';
 
 type Errors = {
   title?: string;
@@ -29,8 +31,11 @@ export interface ReportFormValues {
   title?: string;
   category: string;
   description: string;
+  /** ISO date string (from the calendar picker). */
   date: string;
   location: string;
+  /** Local image URI picked via camera/gallery (uploaded on submit). */
+  photo: PickedPhoto | null;
 }
 
 export function ReportForm({
@@ -53,6 +58,7 @@ export function ReportForm({
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
   const [errors, setErrors] = useState<Errors>({});
 
   const isFound = type === 'Found';
@@ -85,6 +91,7 @@ export function ReportForm({
         description: description.trim(),
         date: date.trim(),
         location: location.trim(),
+        photo,
       });
     }
   }
@@ -109,16 +116,13 @@ export function ReportForm({
             error={errors.title}
           />
         ) : null}
-        <FormField
-          label="Category"
-          placeholder="Select a category"
+        <CategorySelect
           value={category}
-          onChangeText={(text) => {
-            setCategory(text);
+          onChange={(next) => {
+            setCategory(next);
             clearError('category');
           }}
           error={errors.category}
-          trailing={<ChevronDown size={20} color={Colors.mutedForeground} />}
         />
         <View>
           <Text style={styles.fieldLabel}>Description</Text>
@@ -132,16 +136,15 @@ export function ReportForm({
             error={errors.description}
           />
         </View>
-        <FormField
+        <DatePickerField
           label={`Date ${type.toLowerCase()}`}
-          placeholder="Sep 24, 2026"
           value={date}
-          onChangeText={(text) => {
-            setDate(text);
+          onChange={(iso) => {
+            setDate(iso);
             clearError('date');
           }}
           error={errors.date}
-          trailing={<Clock3 size={20} color={Colors.mutedForeground} />}
+          maximumDate={new Date()}
         />
         <FormField
           label={`Location ${type.toLowerCase()}`}
@@ -152,17 +155,9 @@ export function ReportForm({
             clearError('location');
           }}
           error={errors.location}
-          trailing={<MapPin size={20} color={Colors.mutedForeground} />}
+          trailing={<CircleHelp size={0} color="transparent" />}
         />
-        <Pressable style={styles.photoButton}>
-          <View style={styles.photoIcon}>
-            <ImagePlus size={20} color={Colors.mutedForeground} />
-          </View>
-          <View>
-            <Text style={styles.photoTitle}>Add reference photo</Text>
-            <Text style={styles.photoSubtitle}>Optional · JPG or PNG</Text>
-          </View>
-        </Pressable>
+        <PhotoPicker photo={photo} onChange={setPhoto} />
         <View style={styles.hint}>
           <CircleHelp size={20} color={Colors.primary} />
           <Text style={styles.hintText}>
@@ -193,36 +188,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: Colors.foreground,
-  },
-  photoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    minHeight: 96,
-    borderRadius: Radius.input,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    paddingHorizontal: 16,
-  },
-  photoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoTitle: {
-    fontSize: 14,
-    fontFamily: Fonts.semiBold,
-    color: Colors.foreground,
-  },
-  photoSubtitle: {
-    marginTop: 4,
-    fontSize: 12,
-    color: Colors.mutedForeground,
   },
   hint: {
     flexDirection: 'row',

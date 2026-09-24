@@ -25,7 +25,7 @@ export function useMyLostReports(
   });
 }
 
-/** File a lost report (writes to lost_reports). */
+/** File a lost report (writes to lost_reports, optional reference photo). */
 export function useCreateLostReport() {
   const queryClient = useQueryClient();
   return useMutation({

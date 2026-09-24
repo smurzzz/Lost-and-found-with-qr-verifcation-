@@ -57,6 +57,7 @@ export interface LostReportRow {
   reported_by: string;
   category: string;
   description: string;
+  photo_url: string | null;
   lost_location: string;
   lost_date: string;
   status: LostReportStatus;
@@ -203,15 +204,21 @@ export async function fetchMyLostReports(userId: string): Promise<LostReportRow[
   return (data ?? []) as LostReportRow[];
 }
 
-/** File a lost report. */
+/** File a lost report (photo_url optional — reference photo of the item). */
 export async function insertLostReport(input: {
   reported_by: string;
   category: string;
   description: string;
+  photo_url?: string | null;
   lost_location: string;
   lost_date: string;
 }): Promise<LostReportRow> {
-  const { data, error } = await client().from('lost_reports').insert(input).select('*').single();
+  const { photo_url, ...rest } = input;
+  const { data, error } = await client()
+    .from('lost_reports')
+    .insert({ ...rest, ...(photo_url !== undefined ? { photo_url } : {}) })
+    .select('*')
+    .single();
   if (error) throw error;
   return data as LostReportRow;
 }

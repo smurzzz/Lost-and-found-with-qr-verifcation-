@@ -9,45 +9,43 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { ImagePlus } from 'lucide-react-native';
-
 import { Colors, Fonts, Radius } from '@/constants/design';
-import { Button3, ChipButton, FormField, Header, TextArea3 } from '@/components/v3/core';
+import { Button3, FormField, Header, TextArea3 } from '@/components/v3/core';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { CategorySelect, DatePickerField } from '@/components/v3/pickers';
+import { PhotoPicker, type PickedPhoto } from '@/components/v3/photo-picker';
 import { tabRoute } from '@/lib/v3-nav';
+import { uploadItemPhoto } from '@/lib/storage';
 import { useLogFoundItem } from '@/lib/hooks/use-items';
 import { useSession } from '@/lib/session';
 
-const CATEGORY_OPTIONS = ['Electronics', 'Bags', 'Clothing', 'IDs/Cards', 'Other'];
-
-const todayLabel = new Date().toLocaleDateString('en-US', {
-  weekday: 'long',
-  month: 'short',
-  day: 'numeric',
-});
-
 interface FormErrors {
   title?: string;
+  category?: string;
   description?: string;
   location?: string;
 }
 
 export default function StaffLogFoundScreen() {
-  const { isDemo } = useSession();
+  const { isDemo, dbUser } = useSession();
   const logMutation = useLogFoundItem();
 
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState(CATEGORY_OPTIONS[0] ?? 'Other');
+  const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [foundLocation, setFoundLocation] = useState('');
+  const [foundDate, setFoundDate] = useState(new Date().toISOString());
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
   const busy = logMutation.isPending;
 
-  function submit() {
+  async function submit() {
     const next: FormErrors = {};
     if (title.trim().length < 3) next.title = 'Give the item a short name (3+ characters).';
+    if (!category) next.category = 'Please select a category.';
     if (description.trim().length < 5) next.description = 'Describe the item so it can be matched.';
     if (foundLocation.trim().length < 2) next.location = 'Where was it found?';
     setErrors(next);
@@ -58,12 +56,30 @@ export default function StaffLogFoundScreen() {
       return;
     }
 
+    setUploadError(null);
+    let photoUrl: string | null = null;
+    if (photo) {
+      try {
+        photoUrl = await uploadItemPhoto({
+          localUri: photo.uri,
+          userId: dbUser?.id ?? 'anon',
+        });
+      } catch (cause) {
+        setUploadError(
+          cause instanceof Error ? cause.message : 'Could not upload the photo. Try again.',
+        );
+        return;
+      }
+    }
+
     logMutation.mutate(
       {
         title: title.trim(),
         category,
         description: description.trim(),
+        photo_url: photoUrl,
         found_location: foundLocation.trim(),
+        found_date: foundDate,
       },
       {
         onSuccess: (item) =>
@@ -96,19 +112,11 @@ export default function StaffLogFoundScreen() {
           error={errors.title}
         />
 
-        <View>
-          <Text style={styles.fieldLabel}>Category</Text>
-          <View style={styles.chipRow}>
-            {CATEGORY_OPTIONS.map((option) => (
-              <ChipButton
-                key={option}
-                label={option}
-                active={category === option}
-                onPress={() => setCategory(option)}
-              />
-            ))}
-          </View>
-        </View>
+        <CategorySelect
+          value={category}
+          onChange={(next) => setCategory(next)}
+          error={errors.category}
+        />
 
         <View>
           <Text style={styles.fieldLabel}>Description</Text>
@@ -129,27 +137,22 @@ export default function StaffLogFoundScreen() {
           error={errors.location}
         />
 
-        <View>
-          <Text style={styles.fieldLabel}>Found date</Text>
-          <View style={styles.dateField}>
-            <Text style={styles.dateText}>{todayLabel}</Text>
-          </View>
-        </View>
+        <DatePickerField
+          label="Found date"
+          value={foundDate}
+          onChange={setFoundDate}
+          maximumDate={new Date()}
+        />
 
-        <View style={styles.photoButton}>
-          <ImagePlus size={24} color={Colors.mutedForeground} />
-          <View style={styles.photoTextWrap}>
-            <Text style={styles.photoText}>Add item photo</Text>
-            <Text style={styles.photoNote}>Optional — arrives in a later phase</Text>
-          </View>
-        </View>
+        <PhotoPicker photo={photo} onChange={setPhoto} />
 
-        {logMutation.isError ? (
+        {uploadError || logMutation.isError ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorBannerText}>
-              {logMutation.error instanceof Error
-                ? logMutation.error.message
-                : 'Could not log the item.'}
+              {uploadError ??
+                (logMutation.error instanceof Error
+                  ? logMutation.error.message
+                  : 'Could not log the item.')}
             </Text>
           </View>
         ) : null}

@@ -95,17 +95,27 @@ export function ItemCard({
   );
 }
 
-/** DB ItemRow card for the staff dashboard (real data, no photo asset). */
+/** Item photo: real image when the row has one, brand placeholder otherwise. */
+export function ItemPhoto({ uri, style }: { uri: string | null; style?: object }) {
+  if (uri) {
+    return <Image source={{ uri }} style={[styles.image, style]} resizeMode="cover" />;
+  }
+  return (
+    <View style={[styles.dashPlaceholder, style]}>
+      <View style={styles.dashPlaceholderIcon}>
+        <PackageCheck size={34} color={Colors.card} />
+      </View>
+    </View>
+  );
+}
+
+/** DB ItemRow card for the staff dashboard (real data). */
 export function StaffItemCard({ item, onOpen }: { item: ItemRow; onOpen?: () => void }) {
   return (
     <View style={[styles.card, Shadows.card]}>
       <Pressable onPress={onOpen} accessibilityLabel={`View ${item.title}`}>
         <View style={styles.imageWrap}>
-          <View style={styles.dashPlaceholder}>
-            <View style={styles.dashPlaceholderIcon}>
-              <PackageCheck size={34} color={Colors.card} />
-            </View>
-          </View>
+          <ItemPhoto uri={item.photo_url} />
           <View style={styles.pillOverlay}>
             <StatusPill status={itemStatusToPill[item.status]} />
           </View>
@@ -142,7 +152,7 @@ export function StaffItemCard({ item, onOpen }: { item: ItemRow; onOpen?: () => 
   );
 }
 
-/** DB ItemRow card for the student feed (real data, Phase 6) — Mine / Not mine. */
+/** DB ItemRow card for the student feed (real data) — Mine / Not mine. */
 export function StudentItemCard({
   item,
   onMine,
@@ -155,11 +165,7 @@ export function StudentItemCard({
   return (
     <View style={[styles.card, Shadows.card]}>
       <View style={styles.imageWrap}>
-        <View style={styles.dashPlaceholder}>
-          <View style={styles.dashPlaceholderIcon}>
-            <PackageCheck size={34} color={Colors.card} />
-          </View>
-        </View>
+        <ItemPhoto uri={item.photo_url} />
         <View style={styles.pillOverlay}>
           <StatusPill status={itemStatusToPill[item.status]} />
         </View>

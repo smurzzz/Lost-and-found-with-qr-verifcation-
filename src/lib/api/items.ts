@@ -12,6 +12,7 @@ export interface LogFoundInput {
   title: string;
   category: string;
   description: string;
+  photo_url?: string | null;
   found_location: string;
   found_date?: string;
 }

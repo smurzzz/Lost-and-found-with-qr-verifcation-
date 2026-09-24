@@ -32,6 +32,7 @@ interface LogFoundBody {
   title?: string;
   category?: string;
   description?: string;
+  photo_url?: string | null;
   found_location?: string;
   found_date?: string;
 }
@@ -97,13 +98,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       : new Date().toISOString();
   const now = new Date().toISOString();
 
+  // Optional public photo URL (uploaded client-side to the item-photos
+  // bucket; the client passes the public URL here).
+  const photoUrl = (body.photo_url ?? '').trim() || null;
+
   const { data: item, error: insertError } = await admin
     .from('items')
     .insert({
       title,
       category,
       description,
-      photo_url: null,
+      photo_url: photoUrl,
       found_location: foundLocation,
       found_date: foundDate,
       source: 'staff_logged',
