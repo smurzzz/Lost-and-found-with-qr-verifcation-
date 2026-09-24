@@ -40,6 +40,19 @@ interface ConfirmReceiptPayload {
   error?: { code?: string; message?: string };
 }
 
+interface ReleasePayload {
+  ok?: boolean;
+  itemId?: string;
+  claimId?: string;
+  error?: { code?: string; message?: string };
+}
+
+export interface ReleaseInput {
+  itemId: string;
+  claimId: string;
+  scannedQrCode: string;
+}
+
 /** POST /log-found (Edge Function): staff-logged item + server QR tag. */
 export async function logFoundItem(input: LogFoundInput): Promise<ItemRow> {
   const token = await getClerkSupabaseToken();
@@ -116,4 +129,49 @@ export async function confirmReceivedItem(itemId: string): Promise<ItemRow> {
     throw new ApiError(response.status, payload?.error?.code ?? 'unknown', message);
   }
   return payload.item;
+}
+
+/**
+ * POST /release (Edge Function): the ONLY write path allowed to mark an item
+ * claimed (02-ARCHITECTURE.md §4). Server-side it re-validates the scanned QR
+ * against the item and the claim's 'approved' status before touching anything.
+ */
+export async function releaseItem(
+  input: ReleaseInput,
+): Promise<{ itemId: string; claimId: string }> {
+  const token = await getClerkSupabaseToken();
+  if (!token) {
+    throw new ApiError(401, 'unauthenticated', 'Your session has ended. Please sign in again.');
+  }
+  const env = getEnv();
+  if (!env.isConfigured) {
+    throw new ApiError(503, 'not_configured', 'Supabase is not configured.');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${env.supabaseUrl}/functions/v1/release`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError(0, 'network', 'Could not reach the server. Check your connection.');
+  }
+
+  let payload: ReleasePayload | null = null;
+  try {
+    payload = (await response.json()) as ReleasePayload;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok || !payload?.ok) {
+    const message = payload?.error?.message ?? 'Could not release the item.';
+    throw new ApiError(response.status, payload?.error?.code ?? 'unknown', message);
+  }
+  return { itemId: payload.itemId ?? input.itemId, claimId: payload.claimId ?? input.claimId };
 }

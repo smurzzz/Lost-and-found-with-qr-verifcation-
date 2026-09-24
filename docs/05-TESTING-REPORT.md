@@ -89,13 +89,17 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | QR-02 | Cancel mid-scan leaves item unclaimed                | ⏳     |
 | QR-03 | Scan by unauthenticated/non-staff account is blocked | ⏳     |
 
+> Phase 9 status: code-complete — the release flow is fully wired (scan.tsx real expo-camera QR → `fetchItemByQrCode` resolve → release.tsx real item/claim sheet with the RLS-based approve step → `/release` Edge Function, itemId in body → released.tsx real response). CP-05 (invalid scans rejected — a bogus tag never reaches the sheet and `/release` returns `qr_mismatch`), CP-06 (release requires an approved claim — `409 claim_not_approved`), and CP-07 (every transition writes its audit row — `released` is written before `status='claimed'`) are code-verified but stay ⏳ until a live device run against a deployed `release` function. CP-01/CP-02 still guard the one-rule: only `/release` can set `claimed`, and the `items_status_lock` trigger backs it in DB.
+
 ### Audit & Reporting
 
 | ID    | Case                                                 | Status |
 | ----- | ---------------------------------------------------- | ------ |
 | AL-01 | Filter by status (Unclaimed/Pending Claim/Claimed)   | ⏳     |
 | AL-02 | Timeline expands with correct chronological order    | ⏳     |
-| AL-03 | Export/print (if implemented) produces accurate data | ⏳     |
+| AL-03 | Export/print (if implemented) produces accurate data | N/A    |
+
+> Phase 10 status: code-complete — `useAuditFeed` reads real `audit_log` rows (item + actor joins, RLS `audit_log_select`), `audit.tsx` filters by real item status (AL-01) and renders each item's events in chronological order with actor/System, timestamp and note (AL-02). Rows stay ⏳ until a live run against a device lifecycle. AL-03 is out of the released scope (no export/print feature), so it is marked N/A rather than pending.
 
 ### Auth & Roles (Phase 3)
 

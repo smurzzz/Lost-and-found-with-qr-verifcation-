@@ -8,7 +8,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchPendingClaims, insertClaim } from '@/lib/db';
+import { fetchClaimsForItem, fetchPendingClaims, insertClaim, setClaimStatus } from '@/lib/db';
 
 interface UsePendingClaimsOptions {
   enabled?: boolean;
@@ -24,6 +24,16 @@ export function usePendingClaims(options: UsePendingClaimsOptions = {}) {
   });
 }
 
+/** Claims on one item with claimant name, newest first (release sheet). */
+export function useClaimsForItem(itemId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['claims', 'item', itemId ?? ''],
+    queryFn: () => fetchClaimsForItem(itemId as string),
+    enabled: Boolean(itemId),
+    staleTime: 30_000,
+  });
+}
+
 /** Student: file a claim on an item (status 'pending' + item → pending_claim). */
 export function useClaimItem() {
   const queryClient = useQueryClient();
@@ -34,6 +44,17 @@ export function useClaimItem() {
       void queryClient.invalidateQueries({ queryKey: ['items'] });
       void queryClient.invalidateQueries({ queryKey: ['claims'] });
       void queryClient.setQueryData(['claim', claim.id], claim);
+    },
+  });
+}
+
+/** Staff: approve a pending claim (RLS claims_update_staff). */
+export function useApproveClaim() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (claimId: string) => setClaimStatus({ claimId, status: 'approved' }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['claims'] });
     },
   });
 }

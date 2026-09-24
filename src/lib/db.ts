@@ -82,6 +82,17 @@ export interface PendingClaimRow {
   item: { id: string; title: string; category: string; status: ItemStatus } | null;
 }
 
+/** Any claim on one item, joined with the claimant name (release sheet). */
+export interface ClaimWithClaimantRow {
+  id: string;
+  item_id: string;
+  claimant_id: string;
+  verification_answer: string;
+  status: ClaimStatus;
+  created_at: string;
+  claimant: { name: string } | null;
+}
+
 export interface AuditLogRow {
   id: string;
   item_id: string;
@@ -89,6 +100,29 @@ export interface AuditLogRow {
   actor_id: string | null;
   note: string;
   created_at: string;
+}
+
+/**
+ * One audit_log row joined with its item + actor for the staff Audit tab.
+ * `actor` is null for system events (trigger writes); `item` is always present
+ * (FK cascades). Any authenticated user may read audit_log (RLS), so a plain
+ * client query suffices.
+ */
+export interface AuditEventRow {
+  id: string;
+  item_id: string;
+  event_type: AuditEvent;
+  actor_id: string | null;
+  note: string;
+  created_at: string;
+  item: {
+    id: string;
+    title: string;
+    category: string;
+    status: ItemStatus;
+    found_location: string;
+  } | null;
+  actor: { name: string; role: UserRole } | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -133,6 +167,21 @@ export async function fetchStudentReports(): Promise<ItemRow[]> {
 /** One item by id (QR tag screen, release flow). */
 export async function fetchItemById(id: string): Promise<ItemRow | null> {
   const { data, error } = await client().from('items').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return (data as ItemRow) ?? null;
+}
+
+/**
+ * Look up one item by its printed QR tag (scan flow). RLS lets any signed-in
+ * user read items; the server enforced re-validation still happens in the
+ * /release function before any status change.
+ */
+export async function fetchItemByQrCode(qrCode: string): Promise<ItemRow | null> {
+  const { data, error } = await client()
+    .from('items')
+    .select('*')
+    .eq('qr_code', qrCode)
+    .maybeSingle();
   if (error) throw error;
   return (data as ItemRow) ?? null;
 }
@@ -258,6 +307,24 @@ export async function fetchPendingClaims(): Promise<PendingClaimRow[]> {
   return (data ?? []) as unknown as PendingClaimRow[];
 }
 
+/**
+ * All claims on one item with the claimant name, newest first (release sheet).
+ * RLS lets staff read all claims + users, so no Edge Function is needed here;
+ * the actual release mutation still goes through the /release Edge Function.
+ */
+export async function fetchClaimsForItem(itemId: string): Promise<ClaimWithClaimantRow[]> {
+  const { data, error } = await client()
+    .from('claims')
+    .select(
+      'id, item_id, claimant_id, verification_answer, status, created_at, ' +
+        'claimant:users!claims_claimant_id_fkey(name)',
+    )
+    .eq('item_id', itemId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as ClaimWithClaimantRow[];
+}
+
 /** Per-item audit trail, oldest first (the Audit screen timeline). */
 export async function fetchItemAudit(itemId: string): Promise<AuditLogRow[]> {
   const { data, error } = await client()
@@ -267,6 +334,20 @@ export async function fetchItemAudit(itemId: string): Promise<AuditLogRow[]> {
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as AuditLogRow[];
+}
+
+/** Every audit row with item + actor joins, newest first (Audit tab feed). */
+export async function fetchAuditFeed(): Promise<AuditEventRow[]> {
+  const { data, error } = await client()
+    .from('audit_log')
+    .select(
+      'id, item_id, event_type, actor_id, note, created_at, ' +
+        'item:items!audit_log_item_id_fkey(id, title, category, status, found_location), ' +
+        'actor:users!audit_log_actor_id_fkey(name, role)',
+    )
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as AuditEventRow[];
 }
 
 /** The caller's users row (role checks, profile screen). */

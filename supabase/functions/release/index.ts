@@ -1,12 +1,12 @@
 // ============================================================================
-// ClaimIt — POST /api/items/:id/release  (02-ARCHITECTURE.md §4)
+// ClaimIt — POST /release  (02-ARCHITECTURE.md §4)
 // The ONLY code path allowed to set items.status = 'claimed'.
 // Runs as the service role; the RLS trigger in the Phase 2 migration enforces
 // that no other caller can perform this transition (CP-01 / CP-02).
 //
 // Contract:
-//   POST /items/{itemId}/release
-//   body: { claimId: string, scannedQrCode: string }
+//   POST /functions/v1/release
+//   body: { itemId: string, claimId: string, scannedQrCode: string }
 //   auth: Bearer <Clerk JWT> — must resolve to a users row with role 'staff'
 //         (or 'admin'); the user's id becomes the audit actor.
 //
@@ -16,33 +16,24 @@
 //   3. Verify the referenced claimId is approved (and belongs to this item).
 //   4. Write the released audit_log row.
 //   5. Only then update items.status = 'claimed'.
+//
+// Phase 9 notes:
+//   - itemId moved into the body. Supabase invokes this function at
+//     /functions/v1/release, so a /items/:id/release path could never be
+//     reached from the native client — the body form is what actually ships.
+//   - Auth + response helpers are shared via _shared/claimit.ts.
+//   - The claim must ALREADY be 'approved'. Approval is a separate staff step
+//     (RLS `claims_update_staff`) taken on the release sheet after comparing
+//     the verification answer with the physical item.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-};
+import { CORS, fail, json, requireStaffUser } from '../_shared/claimit.ts';
 
 interface ReleaseBody {
+  itemId?: string;
   claimId?: string;
   scannedQrCode?: string;
-}
-
-interface ClerkClaims {
-  sub?: string;
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  });
-}
-
-function fail(status: number, code: string, message: string): Response {
-  return json({ error: { code, message } }, status);
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -64,59 +55,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   });
 
   // --- Step 1: authenticated staff session ---------------------------------
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return fail(401, 'unauthenticated', 'Missing bearer token.');
+  const auth = await requireStaffUser(req, admin);
+  if (!auth.ok) {
+    return auth.response;
   }
+  const staffId = auth.staffId;
 
-  // In production the Clerk JWT is exchanged for Supabase auth via the
-  // authBridge (Clerk JWT template "supabase" → auth.uid()). The verified
-  // token's sub claim is the Clerk user id used in users.id.
-  const token = authHeader.slice('Bearer '.length);
-  let staffId: string | null = null;
-  try {
-    const payloadPart = token.split('.')[1];
-    const claims = JSON.parse(
-      atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')),
-    ) as ClerkClaims;
-    staffId = claims.sub ?? null;
-  } catch {
-    return fail(401, 'unauthenticated', 'Malformed bearer token.');
-  }
-  if (!staffId) {
-    return fail(401, 'unauthenticated', 'Token has no subject.');
-  }
-
-  const { data: staffUser, error: staffError } = await admin
-    .from('users')
-    .select('id, role')
-    .eq('id', staffId)
-    .single();
-
-  if (staffError || !staffUser) {
-    return fail(403, 'unknown_user', 'Caller is not a registered user.');
-  }
-  if (staffUser.role !== 'staff' && staffUser.role !== 'admin') {
-    return fail(403, 'forbidden', 'Only staff can release items.');
-  }
-
-  // --- Parse path + body ----------------------------------------------------
-  const url = new URL(req.url);
-  const match = url.pathname.match(/\/items\/([^/]+)\/release$/);
-  if (!match) {
-    return fail(400, 'bad_path', 'Expected /items/:id/release.');
-  }
-  const itemId = match[1];
-
+  // --- Parse body -------------------------------------------------------------
   let body: ReleaseBody;
   try {
     body = (await req.json()) as ReleaseBody;
   } catch {
     return fail(400, 'bad_body', 'Invalid JSON body.');
   }
-  const { claimId, scannedQrCode } = body;
-  if (!claimId || !scannedQrCode) {
-    return fail(400, 'bad_body', 'claimId and scannedQrCode are required.');
+  const { itemId, claimId, scannedQrCode } = body;
+  if (!itemId || !claimId || !scannedQrCode) {
+    return fail(400, 'bad_body', 'itemId, claimId and scannedQrCode are required.');
   }
 
   // --- Step 2: scanned QR matches the item's stored qr_code ----------------

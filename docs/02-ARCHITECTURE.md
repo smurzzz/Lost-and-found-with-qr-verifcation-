@@ -94,15 +94,21 @@
 Item status can only transition to `claimed` through a single server-side endpoint:
 
 ```
-POST /api/items/:id/release
-body: { claimId, scannedQrCode, staffId }
+POST /functions/v1/release          (the Release Edge Function; Supabase hosts
+                                     each function at /functions/v1/<name>)
+body: { itemId, claimId, scannedQrCode }
 ```
+
+(Phase 9 note: the earlier `/api/items/:id/release` path form is legacy — Supabase
+invokes functions at `/functions/v1/release`, so a body-free `/items/:id/release`
+route could never be reached from the native client. `itemId` now travels in the
+request body.)
 
 This endpoint:
 
 1. Verifies the caller has an authenticated **staff** session.
 2. Verifies `scannedQrCode` matches the item's stored `qr_code`.
-3. Verifies the referenced `claimId` is `approved`.
+3. Verifies the referenced `claimId` is `approved` (and belongs to that item).
 4. Writes the `released` audit_log row.
 5. Only then updates `items.status = 'claimed'`.
 
@@ -124,9 +130,9 @@ POST /confirm-receipt
 body: { itemId }
 ```
 
-Also runs as the service role with the same staff auth contract. It loads the item and confirms exactly once: the item must be `source = 'student_reported'` **and** `status = 'pending_dropoff'` (anything else → `409`), then mints the server-side QR tag, transitions the item `pending_dropoff → available` with `confirmed_by`/`confirmed_at`, and writes a `confirmed` audit_log row. This is only legal inbound order to give a student-reported item a QR (CP-03/CP-04); `claimed` still belongs exclusively to `/items/:id/release`.
+Also runs as the service role with the same staff auth contract. It loads the item and confirms exactly once: the item must be `source = 'student_reported'` **and** `status = 'pending_dropoff'` (anything else → `409`), then mints the server-side QR tag, transitions the item `pending_dropoff → available` with `confirmed_by`/`confirmed_at`, and writes a `confirmed` audit_log row. This is only legal inbound order to give a student-reported item a QR (CP-03/CP-04); `claimed` still belongs exclusively to `/release`.
 
-**Shared Edge Function module:** both `/log-found` and `/confirm-receipt` import `supabase/functions/_shared/claimit.ts` (CORS, JSON helpers, `uniqueQrCode` QR minting, `requireStaffUser` Clerk-JWT staff check) so the two staff paths share one implementation (09 §9 — "don't duplicate this logic, share it"). `_shared` is bundled into each function at deploy time.
+**Shared Edge Function module:** `/log-found`, `/confirm-receipt`, and `/release` all import `supabase/functions/_shared/claimit.ts` (CORS, JSON helpers, `uniqueQrCode` QR minting, `requireStaffUser` Clerk-JWT staff check) so the staff paths share one implementation (09 §9 — "don't duplicate this logic, share it"). `_shared` is bundled into each function at deploy time.
 
 ## 5. Screen-to-module map
 
@@ -138,10 +144,12 @@ Also runs as the service role with the same staff auth contract. It loads the it
 | Confirm Receipt              | Staff Logging     | `items` (status: pending_dropoff → available, qr generated via `/confirm-receipt`) |
 | Possible Matches / Home feed | Matching          | reads `items` + `lost_reports`, writes `claims` on "This is mine"                  |
 | Claim Verification           | Matching          | `claims` (status: pending)                                                         |
-| Scan QR to Release           | QR Release        | `items.status`, `audit_log`                                                        |
+| Scan QR to Release           | QR Release        | `items.status` via `/release`, `audit_log` (`released`), `claims` (staff approval) |
 | Audit Log                    | Audit & Reporting | reads `audit_log`                                                                  |
 
-**Claim transition (Phase 7):** filing a claim writes a `claims` row with `status = 'pending'` plus a `claim_requested` audit row (RLS-guarded `insertClaim`). A server-side trigger (migration `20250924000005_phase7_claims.sql`) then moves the referenced item `available → pending_claim` — and only from `available`; `pending_dropoff` (unconfirmed) items stay put, and the trigger can never write `claimed` (that stays exclusive to `/items/:id/release`, enforced by the `items_status_lock` trigger). A partial unique index also rejects a second _pending_ claim on the same item. Staff read pending claims (with claimant name + item) via RLS-staff policies — no Edge Function required.
+**Claim transition (Phase 7):** filing a claim writes a `claims` row with `status = 'pending'` plus a `claim_requested` audit row (RLS-guarded `insertClaim`). A server-side trigger (migration `20250924000005_phase7_claims.sql`) then moves the referenced item `available → pending_claim` — and only from `available`; `pending_dropoff` (unconfirmed) items stay put, and the trigger can never write `claimed` (that stays exclusive to `/release`, enforced by the `items_status_lock` trigger). A partial unique index also rejects a second _pending_ claim on the same item. Staff read pending claims (with claimant name + item) via RLS-staff policies — no Edge Function required.
+
+**Claim decisioning (Phase 9):** the staff approval decision lands on the Release bottom sheet, where staff compare the physical item against the claim's verification answer. Approving sets `claims.status = 'approved'` via the staff RLS policy (`claims_update_staff`) — approval alone never changes item status. Release then additionally requires a live QR scan whose value matches the item (`/release` step 2) and the approved claim (`/release` step 3, else `409 claim_not_approved` — CP-06). Item rows and their claims are read client-side under staff RLS; only the release mutation itself needs the Edge Function.
 
 ## 6. Matching logic (v1)
 

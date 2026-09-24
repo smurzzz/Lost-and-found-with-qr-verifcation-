@@ -202,22 +202,26 @@ Implemented: the staff `Student Reports` tab reads real `pending_dropoff` items 
 
 **This is the phase the whole project depends on — allocate the most review time here.**
 
-- [ ] Real camera scanning replaces the Phase 1 debug-button mock
-- [ ] Scan validated server-side against the signed QR token
-- [ ] Confirm Release bottom sheet pulls real claimant/claim data
-- [ ] Release endpoint fully wired end to end
-- [ ] Item Released success state reflects the real server response
+- [x] Real camera scanning replaces the Phase 1 debug-button mock
+- [x] Scan validated server-side against the signed QR token
+- [x] Confirm Release bottom sheet pulls real claimant/claim data
+- [x] Release endpoint fully wired end to end
+- [x] Item Released success state reflects the real server response
 
 **Exit criterion:** CP-05 and CP-07 pass — invalid scans are rejected, and every transition produces an audit_log row.
+
+Implemented: `scan.tsx` uses expo-camera `CameraView` QR barcode scanning (permission + denial-recovery panels, invalid-tag and network error states with a rescan path) and resolves the tag against the DB (`fetchItemByQrCode`) before opening the release sheet; the `release` Edge Function was rewritten to take `itemId` in the request body (Supabase invokes the function at `/functions/v1/release`, so the old `/items/:id/release` path could never be reached from the client — the body form is the actual wire fix) and keeps the §4 steps: staff auth → scanned QR matches item → claim `approved` (else 409 `claim_not_approved`, CP-06) → `released` audit row → `items.status='claimed'` last; `releaseItem`/`useReleaseItem` route the Confirm Release through it; `release.tsx` pulls the item + claims for real (`useItem` + `useClaimsForItem`), approves pending claims via RLS (`useApproveClaim`), blocks release with no approved claim (CP-06) and shows a read-only state for already-claimed items, then routes to `released.tsx`, which now reflects the real item + claim id. `expo-camera@~57.0.5` was already installed; no migration needed.
 
 ---
 
 ## Phase 10 — Audit & Reporting (wire the real thing)
 
-- [ ] Audit log list + filters fetch real `audit_log` data
-- [ ] Expandable per-item timeline reads real chronological events
+- [x] Audit log list + filters fetch real `audit_log` data
+- [x] Expandable per-item timeline reads real chronological events
 
 **Exit criterion:** AL-01 through AL-03 pass.
+
+Implemented: `useAuditFeed` → `fetchAuditFeed` reads the append-only `audit_log` with item + actor joins (`audit_log_item_id_fkey` / `audit_log_actor_id_fkey`; any authenticated user can read per the `audit_log_select` RLS policy — no Edge Function needed) and groups events per item (chronological within an item, newest group first). `audit.tsx` real mode keeps the Phase 1 filter chips (All / Unclaimed / Pending Claim / Claimed, mapped to item statuses) and the same expandable timeline visual, but each step now shows the real event label (`reported/confirmed/found/matched/claim_requested/released`), the actor's name + role (or `System` for trigger/system writes), timestamp, and the event note (e.g. the released handoff's claim id). Loading, error+retry, and empty states are explicit; demo mode keeps the mocks. No migration needed.
 
 ---
 

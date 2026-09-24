@@ -1,8 +1,11 @@
 /**
- * Released (staff) — v3 port (Released): full green success screen.
+ * Released (staff) — v3 port (Released): full green success screen reflecting
+ * the real /release response (Phase 9). Receives the item + claim ids from the
+ * release sheet and shows the released item's title + claim id; demo mode keeps
+ * the Phase 1 generic copy.
  */
 
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Check } from 'lucide-react-native';
@@ -12,8 +15,16 @@ import { Button3 } from '@/components/v3/core';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
+import { useItem } from '@/lib/hooks/use-items';
 
 export default function ReleasedScreen() {
+  const { itemId, claimId } = useLocalSearchParams<{ itemId?: string; claimId?: string }>();
+  const realItemId = typeof itemId === 'string' && itemId ? itemId : undefined;
+  const { data: item } = useItem(realItemId);
+
+  const real = Boolean(realItemId);
+  const claimLabel = typeof claimId === 'string' ? claimId : undefined;
+
   return (
     <View style={styles.green}>
       <V3Screen
@@ -31,9 +42,16 @@ export default function ReleasedScreen() {
             <Check size={48} color={Colors.primaryForeground} />
           </View>
           <Text style={styles.title}>Item Released</Text>
-          <Text style={styles.text}>
-            The release is verified and has been added to the audit log.
+          <Text style={[styles.text, real ? styles.textCenter : null]}>
+            {real && item
+              ? `${item.title} has been returned. The handoff is in the audit log.`
+              : 'The release is verified and has been added to the audit log.'}
           </Text>
+          {real && claimLabel ? (
+            <View style={styles.claimPill}>
+              <Text style={styles.claimText}>Claim {claimLabel}</Text>
+            </View>
+          ) : null}
           <Button3
             label="Back to Dashboard"
             style={styles.button}
@@ -74,6 +92,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(248,250,252,0.85)',
     textAlign: 'center',
+    maxWidth: 280,
+  },
+  textCenter: { textAlign: 'center' },
+  claimPill: {
+    marginTop: 16,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  claimText: {
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primaryForeground,
   },
   button: {
     alignSelf: 'stretch',
