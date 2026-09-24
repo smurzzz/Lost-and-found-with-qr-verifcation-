@@ -7,12 +7,12 @@
 import { supabase } from '@/lib/supabase';
 import type { UserRow, UserRole } from '@/lib/db';
 
-/** School email domain enforced at signup (01-PROJECT-OVERVIEW.md). */
-export const SCHOOL_DOMAIN = '@school.edu';
+/** School email domains accepted for student self-signup (01-PROJECT-OVERVIEW.md). */
+export const STUDENT_DOMAINS = ['@school.edu'];
 
 export class DomainError extends Error {
   constructor() {
-    super('Only school email addresses (@school.edu) can sign up.');
+    super(`Only school email addresses (${STUDENT_DOMAINS.join(', ')}) can sign up.`);
     this.name = 'DomainError';
   }
 }
@@ -52,7 +52,9 @@ export async function syncUserOnLogin(profile: ClerkProfile): Promise<UserRow> {
   if (selectError) throw selectError;
   if (existing) return existing as UserRow;
 
-  const isStaffEmail = !profile.email.toLowerCase().endsWith(SCHOOL_DOMAIN);
+  const isStaffEmail = !STUDENT_DOMAINS.some((domain) =>
+    profile.email.toLowerCase().endsWith(domain),
+  );
   if (isStaffEmail) {
     // Staff are invite-only: no self-service row creation.
     throw new StaffNotProvisionedError();

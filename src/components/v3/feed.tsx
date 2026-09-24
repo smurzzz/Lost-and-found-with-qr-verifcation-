@@ -11,6 +11,7 @@ import { MapPin, PackageCheck, QrCode, Search, Sparkles } from 'lucide-react-nat
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, ChipButton, StatusPill, type PillStatus } from '@/components/v3/core';
 import { ItemCardSkeleton } from '@/components/v3/skeleton';
+import { useDebouncedValue } from '@/lib/hooks/use-debounce';
 import { formatFoundDate } from '@/lib/dates';
 import type { ItemRow, LostReportRow } from '@/lib/db';
 import { categories, items, type MockItem } from '@/mocks/data';
@@ -269,19 +270,25 @@ export function Feed({
 
   const isDb = dbItems !== undefined;
 
+  // §2: debounce the search term (~300ms) as the user types.
+  const debouncedQuery = useDebouncedValue(query, 300).toLowerCase().trim();
+
   const mockVisible = useMemo(
     () =>
       items.filter(
         (item) =>
           !dismissed.includes(item.id) &&
           (category === 'All' || item.category === category) &&
-          item.name.toLowerCase().includes(query.toLowerCase()),
+          (item.name.toLowerCase().includes(debouncedQuery) ||
+            item.category.toLowerCase().includes(debouncedQuery)),
       ),
-    [category, dismissed, query],
+    [category, debouncedQuery, dismissed],
   );
 
-  // Real feed: search + category on DB rows; claimed items are hidden (one item,
-  // one owner — the release flow owns the claimed transition).
+  // Real feed: search on title/description + category chips, all client-side;
+  // claimed items are hidden (one item, one owner — the release flow owns the
+  // claimed transition). pending_dropoff items stay visible with their
+  // "Pending drop-off" badge per the design.
   const dbVisible = useMemo(
     () =>
       (dbItems ?? []).filter(
@@ -289,9 +296,10 @@ export function Feed({
           !dismissed.includes(item.id) &&
           item.status !== 'claimed' &&
           (category === 'All' || item.category === category) &&
-          item.title.toLowerCase().includes(query.toLowerCase()),
+          (item.title.toLowerCase().includes(debouncedQuery) ||
+            item.description.toLowerCase().includes(debouncedQuery)),
       ),
-    [category, dbItems, dismissed, query],
+    [category, dbItems, debouncedQuery, dismissed],
   );
 
   const visibleCount = isDb ? dbVisible.length : mockVisible.length;

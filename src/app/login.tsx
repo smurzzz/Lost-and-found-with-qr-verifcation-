@@ -11,7 +11,6 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { getEnv } from '@/lib/env';
-import { DomainError, StaffNotProvisionedError } from '@/lib/sync-user';
 import { useSession } from '@/lib/session';
 
 /**
@@ -40,21 +39,18 @@ export default function LoginScreen() {
         return;
       }
       const result = await startSSOFlow({ strategy: 'oauth_google' });
-      if (result?.createdSessionId && result?.setActive) {
-        // Activate the Clerk session; SessionProvider then syncs the users
-        // row and applies the Supabase token (authBridge), and the role
-        // guard routes from "/" to the right home.
-        await result.setActive({ session: result.createdSessionId });
-        router.replace('/');
+      if (!result?.createdSessionId || !result?.setActive) {
+        // User dismissed the provider flow — stay here, non-blocking notice.
+        setError('Sign-in cancelled. Try again when you’re ready.');
+        return;
       }
-    } catch (err) {
-      if (err instanceof DomainError) {
-        setError(err.message);
-      } else if (err instanceof StaffNotProvisionedError) {
-        setError(err.message);
-      } else {
-        setError('Sign-in failed. Please try again.');
-      }
+      // Activate the Clerk session; SessionProvider then syncs the users
+      // row and applies the Supabase token (authBridge), and the role
+      // guard routes from "/" to the right home.
+      await result.setActive({ session: result.createdSessionId });
+      router.replace('/');
+    } catch {
+      setError('Sign-in failed. Please try again.');
     } finally {
       setBusy(false);
     }

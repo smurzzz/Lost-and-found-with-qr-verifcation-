@@ -44,7 +44,9 @@ export default function ClaimVerifyScreen() {
       : undefined;
   const image = isDemo ? demoItem.image : undefined;
   const pillStatus = isDemo ? 'pending' : item ? itemStatusToPill[item.status] : undefined;
-  const canSubmit = isDemo || Boolean(item && dbUser && detail.trim());
+  const detailTrimmed = detail.trim();
+  const detailTooShort = !isDemo && detailTrimmed.length > 0 && detailTrimmed.length < 5;
+  const canSubmit = isDemo || Boolean(item && dbUser && detailTrimmed.length >= 5);
 
   function handleSubmit() {
     if (isDemo) {
@@ -127,6 +129,9 @@ export default function ClaimVerifyScreen() {
             minHeight={128}
             style={styles.textarea}
           />
+          {detailTooShort ? (
+            <Text style={styles.charHint}>Please make it at least 5 characters.</Text>
+          ) : null}
         </View>
 
         {claim.isError ? (
@@ -207,6 +212,11 @@ const styles = StyleSheet.create({
     color: Colors.mutedForeground,
   },
   textarea: { marginTop: 12 },
+  charHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: Colors.mutedForeground,
+  },
   errorBanner: {
     marginTop: 16,
     borderRadius: Radius.input,

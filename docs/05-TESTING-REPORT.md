@@ -72,7 +72,7 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 
 ### Claims
 
-> Phase 7 status: Claim Verification writes a real claim — `insertClaim` (claim `status = 'pending'` + a `claim_requested` audit row), and migration `20250924000005_phase7_claims.sql` adds a server-side trigger that moves the item `available → pending_claim` (never `claimed`; `pending_dropoff` left alone) plus a partial unique index rejecting a second _pending_ claim on the same item. The staff Pending Claims tab lists real `pending` claims with claimant + item (RLS covers staff reads). The _approved_ decision and the release gate arrive with Phase 9. Rows stay ⏳ until a live run.
+> Phase 7 status: Claim Verification writes a real claim — `insertClaim` (claim `status = 'pending'`; its `claim_requested` audit row is auto-created by the `claims_requested_audit_trigger` in migration `20250924000006_phase10_audit_auto.sql`, not by the client — RLS blocks students from `audit_log` inserts), and migration `20250924000005_phase7_claims.sql` adds a server-side trigger that moves the item `available → pending_claim` (never `claimed`; `pending_dropoff` left alone) plus a partial unique index rejecting a second _pending_ claim on the same item. The staff Pending Claims tab lists real `pending` claims with claimant + item (RLS covers staff reads). The _approved_ decision and the release gate arrive with Phase 9. Rows stay ⏳ until a live run.
 
 | ID    | Case                                                 | Status |
 | ----- | ---------------------------------------------------- | ------ |
@@ -99,7 +99,7 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | AL-02 | Timeline expands with correct chronological order    | ⏳     |
 | AL-03 | Export/print (if implemented) produces accurate data | N/A    |
 
-> Phase 10 status: code-complete — `useAuditFeed` reads real `audit_log` rows (item + actor joins, RLS `audit_log_select`), `audit.tsx` filters by real item status (AL-01) and renders each item's events in chronological order with actor/System, timestamp and note (AL-02). Rows stay ⏳ until a live run against a device lifecycle. AL-03 is out of the released scope (no export/print feature), so it is marked N/A rather than pending.
+> Phase 10 status: code-complete — `useAuditFeed` reads real `audit_log` rows (item + actor joins, RLS `audit_log_select`), `audit.tsx` filters by real item status (AL-01) and renders each item's events in chronological order with actor/System, timestamp and note (AL-02). Student-originated rows (`reported`, `claim_requested`) are auto-created by the SECURITY DEFINER triggers in migration `20250924000006_phase10_audit_auto.sql` (students hold no `audit_log` INSERT rights; the client write in `insertClaim` was removed). Rows stay ⏳ until a live run against a device lifecycle. AL-03 is out of the released scope (no export/print feature), so it is marked N/A rather than pending.
 
 ### Auth & Roles (Phase 3)
 

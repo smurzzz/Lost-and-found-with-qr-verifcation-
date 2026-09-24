@@ -1,12 +1,15 @@
 /**
- * Staff Dashboard — v3 port (StaffHome). Stats row, three tabs, Log Found
- * Item button, and per-tab content (items / student report / claims).
+ * Staff Dashboard — v3 port (StaffHome). Stats row, three tabs, a floating
+ * "+" for Log Found Item, and per-tab content (items / student report / claims).
  *
  * Phase 4: the Found Items tab + first stat read real items via
  * useFoundItems (demo mode falls back to the Phase 1 mocks).
  * Phase 7: the Pending Claims tab + stat read real claims via usePendingClaims.
  * Phase 8: the Student Reports tab + stat read real pending_dropoff items via
  * useStudentReports, and each card opens Confirm Receipt with its item id.
+ * §7: the three summary counts are scoped to "This week" — the trailing 7
+ * days keyed on `created_at`; the lists themselves are not windowed. Scan is
+ * reachable directly from the bottom nav.
  */
 
 import { useState } from 'react';
@@ -29,6 +32,14 @@ import { items, staffPendingClaims } from '@/mocks/data';
 
 const tabs = ['Found Items', 'Student Reports', 'Pending Claims'];
 
+// Summary counts are scoped to "This week": the trailing 7 days from now,
+// keyed on `created_at`. The lists themselves are not windowed.
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function withinLastWeek(createdAt?: string | null, now = Date.now()): boolean {
+  return Boolean(createdAt) && now - new Date(createdAt as string).getTime() <= WEEK_MS;
+}
+
 export default function StaffDashboardScreen() {
   const [tab, setTab] = useState('Found Items');
   const role = 'staff' as const;
@@ -41,11 +52,15 @@ export default function StaffDashboardScreen() {
 
   const studentReport = items.find((item) => item.status === 'dropoff');
   const realItems = found.data ?? [];
-  const foundCount = isDemo ? items.length : realItems.length;
-  const claimsCount = isDemo ? staffPendingClaims.length : realPendingClaims.length;
+  const foundCount = isDemo
+    ? items.length
+    : realItems.filter((item) => withinLastWeek(item.created_at)).length;
+  const claimsCount = isDemo
+    ? staffPendingClaims.length
+    : realPendingClaims.filter((claim) => withinLastWeek(claim.created_at)).length;
   const reportsCount = isDemo
     ? items.filter((item) => item.status === 'dropoff').length
-    : realStudentReports.length;
+    : realStudentReports.filter((item) => withinLastWeek(item.created_at)).length;
   const avatarText = dbUser?.name ? initialsOf(dbUser.name) : 'JS';
 
   const foundList = isDemo ? (
@@ -80,6 +95,16 @@ export default function StaffDashboardScreen() {
           onSelect={(t) => router.push(tabRoute(role, t))}
         />
       }
+      floating={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log Found Item"
+          style={({ pressed }) => [styles.fab, Shadows.brand, pressed && styles.fabPressed]}
+          onPress={() => router.push('/(staff)/log-found')}
+        >
+          <Plus size={24} color={Colors.primaryForeground} />
+        </Pressable>
+      }
     >
       <Header
         title="Staff Dashboard"
@@ -92,13 +117,14 @@ export default function StaffDashboardScreen() {
 
       <View style={styles.stats}>
         {[
-          [String(foundCount), 'Found Items'],
-          [String(reportsCount), 'Student Reports'],
-          [String(claimsCount), 'Pending Claims'],
-        ].map(([value, label]) => (
+          { value: String(foundCount), label: 'Found Items' },
+          { value: String(reportsCount), label: 'Student Reports' },
+          { value: String(claimsCount), label: 'Pending Claims' },
+        ].map(({ value, label }) => (
           <View key={label} style={[styles.statCard, Shadows.card]}>
             <Text style={styles.statValue}>{value}</Text>
             <Text style={styles.statLabel}>{label}</Text>
+            <Text style={styles.statCaption}>This week</Text>
           </View>
         ))}
       </View>
@@ -122,16 +148,6 @@ export default function StaffDashboardScreen() {
             </Pressable>
           ))}
         </View>
-      </View>
-
-      <View style={styles.logButtonWrap}>
-        <Button3
-          label="Log Found Item"
-          height={48}
-          onPress={() => router.push('/(staff)/log-found')}
-        >
-          <Plus size={20} color={Colors.primaryForeground} />
-        </Button3>
       </View>
 
       <View style={styles.list}>
@@ -304,6 +320,24 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: Colors.mutedForeground,
   },
+  statCaption: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primary,
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabPressed: {
+    opacity: 0.85,
+  },
   tabRow: {
     flexDirection: 'row',
     gap: 8,
@@ -327,7 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
   },
-  logButtonWrap: { paddingHorizontal: 16, paddingTop: 20 },
   list: { gap: 16, paddingHorizontal: 16, paddingTop: 16 },
   claimCard: {
     flexDirection: 'row',

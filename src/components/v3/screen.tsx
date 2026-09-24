@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Colors } from '@/constants/design';
 
@@ -12,10 +12,18 @@ export function V3Screen({
   children,
   nav,
   scroll = true,
+  refreshing = false,
+  onRefresh,
+  floating,
 }: {
   children: ReactNode;
   nav?: ReactNode;
   scroll?: boolean;
+  /** Pull-to-refresh: enables the spinner when `onRefresh` is provided. */
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  /** Fixed action button overlaid above the nav (e.g. a floating "+"). */
+  floating?: ReactNode;
 }) {
   return (
     <View style={styles.screen}>
@@ -23,9 +31,19 @@ export function V3Screen({
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
-          bounces={false}
-          alwaysBounceVertical={false}
+          bounces={Boolean(onRefresh)}
+          alwaysBounceVertical={Boolean(onRefresh)}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={Colors.primary}
+                colors={[Colors.primary]}
+              />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>
@@ -33,6 +51,7 @@ export function V3Screen({
         <View style={styles.fill}>{children}</View>
       )}
       {nav}
+      {floating ? <View style={styles.floating}>{floating}</View> : null}
     </View>
   );
 }
@@ -45,4 +64,10 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
   fill: { flex: 1 },
+  floating: {
+    position: 'absolute',
+    right: 16,
+    bottom: 96,
+    zIndex: 10,
+  },
 });

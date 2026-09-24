@@ -29,6 +29,13 @@ export default function StudentHomeScreen() {
   const foundItems = useFoundItems({ enabled: !isDemo });
   usePushTokenSync();
 
+  // §2 pull-to-refresh: re-fetches feed + my lost reports in one gesture.
+  const refreshing = !isDemo && (foundItems.isFetching || lostReports.isFetching);
+  const handleRefresh = () => {
+    void foundItems.refetch();
+    void lostReports.refetch();
+  };
+
   const reportSection = (
     <View style={styles.reportsSection}>
       <View style={styles.reportsHeading}>
@@ -81,6 +88,8 @@ export default function StudentHomeScreen() {
           onSelect={(tab) => router.push(tabRoute('student', tab))}
         />
       }
+      refreshing={refreshing}
+      onRefresh={isDemo ? undefined : handleRefresh}
     >
       <View style={styles.topBar}>
         <View style={styles.topBarText}>

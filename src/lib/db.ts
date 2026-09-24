@@ -222,7 +222,7 @@ export async function insertStudentFoundItem(input: {
 }): Promise<ItemRow> {
   const { data, error } = await client()
     .from('items')
-    .insert({ ...input, source: 'student_reported' })
+    .insert({ ...input, source: 'student_reported', status: 'pending_dropoff', qr_code: null })
     .select('*')
     .single();
   if (error) throw error;
@@ -250,29 +250,21 @@ export async function insertStaffFoundItem(input: {
 }
 
 /**
- * Submit a claim (status: pending).
+ * Submit a claim (status: pending). The claim_requested audit row is written
+ * by the claims_requested_audit_trigger (migration 06) — a student has no
+ * audit_log INSERT rights, so it must not be attempted client-side.
  */
 export async function insertClaim(input: {
   item_id: string;
   claimant_id: string;
   verification_answer: string;
 }): Promise<ClaimRow> {
-  const db = client();
-  const { data, error } = await db
+  const { data, error } = await client()
     .from('claims')
     .insert({ ...input, status: 'pending' })
     .select('*')
     .single();
   if (error) throw error;
-
-  const { error: auditError } = await db.from('audit_log').insert({
-    item_id: input.item_id,
-    event_type: 'claim_requested',
-    actor_id: input.claimant_id,
-    note: 'Claim request submitted.',
-  });
-  if (auditError) throw auditError;
-
   return data as ClaimRow;
 }
 

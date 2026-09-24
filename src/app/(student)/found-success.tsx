@@ -34,7 +34,7 @@ export default function FoundSuccessScreen() {
         <Text style={styles.title}>{found ? 'Found item posted' : 'Claim Submitted'}</Text>
         <Text style={styles.text}>
           {found
-            ? 'This item is now visible to other students. Please drop it off with staff to complete verification.'
+            ? 'Pending drop-off — please bring the item to the Front Desk so staff can confirm it and attach a QR tag.'
             : "Your claim has been sent to staff for verification. If approved, staff will scan the item's QR tag before releasing it to you."}
         </Text>
         {found ? (

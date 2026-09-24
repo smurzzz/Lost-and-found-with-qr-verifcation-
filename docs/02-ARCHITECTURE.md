@@ -89,6 +89,8 @@
 | note       | text                                                                 |                              |
 | created_at | timestamp                                                            |                              |
 
+**Who writes audit rows.** Staff/service-role Edge Functions write `found`, `confirmed`, `matched`, and `released` directly (they bypass RLS). Student-originated transitions — `reported` when a student files a found item, and `claim_requested` when a claim is filed — are auto-created by SECURITY DEFINER triggers from migration `20250924000006_phase10_audit_auto.sql`, because students hold no `audit_log` INSERT rights (`audit_log_insert_staff` is staff/admin-only). `audit_log` stays append-only: no UPDATE/DELETE policies exist on it.
+
 ## 4. The non-negotiable constraint
 
 Item status can only transition to `claimed` through a single server-side endpoint:
@@ -146,8 +148,11 @@ Also runs as the service role with the same staff auth contract. It loads the it
 | Claim Verification           | Matching          | `claims` (status: pending)                                                         |
 | Scan QR to Release           | QR Release        | `items.status` via `/release`, `audit_log` (`released`), `claims` (staff approval) |
 | Audit Log                    | Audit & Reporting | reads `audit_log`                                                                  |
+| Staff Dashboard              | Operation home    | reads `items` + `claims`; writes none (Log Found = separate screen)                |
 
-**Claim transition (Phase 7):** filing a claim writes a `claims` row with `status = 'pending'` plus a `claim_requested` audit row (RLS-guarded `insertClaim`). A server-side trigger (migration `20250924000005_phase7_claims.sql`) then moves the referenced item `available → pending_claim` — and only from `available`; `pending_dropoff` (unconfirmed) items stay put, and the trigger can never write `claimed` (that stays exclusive to `/release`, enforced by the `items_status_lock` trigger). A partial unique index also rejects a second _pending_ claim on the same item. Staff read pending claims (with claimant name + item) via RLS-staff policies — no Edge Function required.
+**Staff Dashboard summary counts (decided window):** the three cards show a **"This week"** count — the trailing 7 days from now, keyed on `created_at` (`now - created_at <= 7 days`), computed client-side over the already-fetched lists. The tab lists themselves are intentionally not windowed. The floating "+" opens Log Found Item; Scan QR to Release is reachable directly from the staff bottom nav.
+
+**Claim transition (Phase 7):** filing a claim writes a `claims` row with `status = 'pending'`; its `claim_requested` audit row is auto-created by a SECURITY DEFINER trigger (migration `20250924000006_phase10_audit_auto.sql`) — the client never writes `audit_log` directly, since RLS denies students any INSERT there. A server-side trigger (migration `20250924000005_phase7_claims.sql`) then moves the referenced item `available → pending_claim` — and only from `available`; `pending_dropoff` (unconfirmed) items stay put, and the trigger can never write `claimed` (that stays exclusive to `/release`, enforced by the `items_status_lock` trigger). A partial unique index also rejects a second _pending_ claim on the same item. Staff read pending claims (with claimant name + item) via RLS-staff policies — no Edge Function required.
 
 **Claim decisioning (Phase 9):** the staff approval decision lands on the Release bottom sheet, where staff compare the physical item against the claim's verification answer. Approving sets `claims.status = 'approved'` via the staff RLS policy (`claims_update_staff`) — approval alone never changes item status. Release then additionally requires a live QR scan whose value matches the item (`/release` step 2) and the approved claim (`/release` step 3, else `409 claim_not_approved` — CP-06). Item rows and their claims are read client-side under staff RLS; only the release mutation itself needs the Edge Function.
 

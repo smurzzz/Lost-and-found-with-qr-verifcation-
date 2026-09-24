@@ -57,6 +57,14 @@ export function ReportForm({
 
   const isFound = type === 'Found';
 
+  // §3: keep Submit disabled until every required field is non-empty.
+  const canSubmit =
+    Boolean(category.trim()) &&
+    Boolean(description.trim()) &&
+    Boolean(date.trim()) &&
+    Boolean(location.trim()) &&
+    (!isFound || Boolean(title.trim()));
+
   function validate(): boolean {
     const next: Errors = {};
     if (isFound && !title.trim()) next.title = 'Give the item a name.';
@@ -170,7 +178,7 @@ export function ReportForm({
         ) : null}
         <Button3
           label={busy ? 'Submitting…' : 'Submit Report'}
-          disabled={busy}
+          disabled={busy || !canSubmit}
           onPress={handleSubmit}
         />
       </View>
