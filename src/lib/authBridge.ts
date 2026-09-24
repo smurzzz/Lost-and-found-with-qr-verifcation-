@@ -1,25 +1,39 @@
 /**
- * Clerk → Supabase JWT bridge.
+ * Clerk → Supabase token bridge (official third-party-auth integration).
  *
- * ClaimIt uses Clerk for SSO identity (Google via the Clerk instance) and
- * Supabase (Postgres + RLS) as the data store. Supabase RLS requires a token
- * with `role: 'authenticated'` whose `sub` equals the users.id (which we sync
- * to Clerk's user.id). We apply a Clerk-issued `supabase` template JWT to the
- * Supabase client's session so PostgREST treats the caller as authenticated.
+ * Supabase's supported Clerk integration (supabase.com/docs/guides/auth/
+ * third-party/clerk) passes the plain CLERK SESSION TOKEN to Supabase —
+ * NOT a JWT-template token. Supabase verifies the session token against
+ * Clerk's published JWKS (registered under Authentication → Third-Party
+ * Auth → Clerk) and resolves the caller from its claims.
  *
- * Clerk lets you define a JWT template named `supabase` that includes:
- *   { "role": "authenticated" }
- * (`sub` is reserved — Clerk adds it automatically and it always equals the
- * Clerk user id.) `useAuth().getToken({ template: 'supabase' })` fetches it;
- * session.tsx then applies it via `supabase.auth.setSession({ access_token,
- * refresh_token: null })`.
+ * Requirements:
+ *  - The Clerk session token must carry `role: "authenticated"` (Clerk
+ *    dashboard → Configure → Sessions → Customize session token → add the
+ *    claim). `sub` is always present automatically and equals the Clerk
+ *    user id, which RLS compares to users.id via auth.jwt() ->> 'sub'.
  *
- * If the template is missing or lacks the role claim, RLS executes as `anon`
- * and the users self-signup insert fails — the login screen decodes the token
- * claims below to surface exactly that.
+ * SessionProvider registers the Clerk getToken function here, and the
+ * Supabase client (lib/supabase.ts) reads it through fetchSessionToken()
+ * in its per-request `accessToken` callback — so every DB call carries a
+ * freshly minted token (session tokens expire after ~60 s; a cached one
+ * would silently degrade to anon after a minute).
  */
 
-import { supabase } from '@/lib/supabase';
+let clerkGetToken: ((opts: { template?: string }) => Promise<string | null>) | null = null;
+
+/** Called by SessionProvider when a Clerk session exists (null on cleanup). */
+export function setClerkTokenGetter(
+  fn: ((opts: { template?: string }) => Promise<string | null>) | null,
+): void {
+  clerkGetToken = fn;
+}
+
+/** Fresh Clerk session token for the current request (null when signed out). */
+export async function fetchSessionToken(): Promise<string | null> {
+  if (!clerkGetToken) return null;
+  return clerkGetToken({});
+}
 
 /** Decode a JWT payload for diagnostics (sub / role / iss, non-verifying). */
 export function decodeJwtClaims(token: string): {
@@ -35,22 +49,4 @@ export function decodeJwtClaims(token: string): {
   } catch {
     return null;
   }
-}
-
-/**
- * Apply a Clerk `supabase` template token to the Supabase client session.
- * Call once the Clerk session is active. Passing null signs the Supabase
- * client out (fallback to anon / RLS denied).
- */
-export async function applyClerkSupabaseToken(
-  getToken: (opts: { template: string }) => Promise<string | null>,
-): Promise<string | null> {
-  if (!supabase) return null;
-  const token = await getToken({ template: 'supabase' });
-  if (!token) {
-    await supabase.auth.signOut().catch(() => undefined);
-    return null;
-  }
-  await supabase.auth.setSession({ access_token: token, refresh_token: '' });
-  return token;
 }

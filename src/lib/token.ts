@@ -1,13 +1,12 @@
 /**
- * Access-token helper for the Edge-Function wrappers (typed-api layer).
- * The Supabase client uses Clerk's `supabase` template JWT (set via authBridge)
- * as its access token. We read it directly from the Supabase client's session.
+ * Access-token helper (typed-api layer + diagnostics).
+ * The Supabase client mints a fresh Clerk session token per request via the
+ * module-level getter (authBridge); this reads the same source for callers
+ * outside the client (e.g. error diagnostics).
  */
 
-import { supabase } from '@/lib/supabase';
+import { fetchSessionToken } from '@/lib/authBridge';
 
 export async function getSupabaseAccessToken(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  return fetchSessionToken();
 }

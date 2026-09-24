@@ -25,7 +25,7 @@ import {
 } from 'react';
 import { useAuth, useUser } from '@clerk/expo';
 
-import { applyClerkSupabaseToken, decodeJwtClaims } from '@/lib/authBridge';
+import { decodeJwtClaims, setClerkTokenGetter } from '@/lib/authBridge';
 import { getEnv } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { syncUserOnLogin, type Profile } from '@/lib/sync-user';
@@ -137,16 +137,16 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
     };
   }, [clerkUser]);
 
-  /** Surface a sync failure; appends a diagnosis if the JWT lacks the role claim. */
+  /** Surface a sync failure; appends a diagnosis if the token lacks the role claim. */
   const reportSyncError = useCallback(async (error: unknown) => {
     const detail = error instanceof Error ? error.message : String(error);
-    // If the applied token's `role` claim isn't `authenticated`, PostgREST
+    // If the session token's `role` claim isn't `authenticated`, PostgREST
     // treats us as anon and the insert fails RLS — surface that diagnosis.
     const token = await getSupabaseAccessToken().catch(() => null);
     const claims = token ? decodeJwtClaims(token) : null;
     let hint =
       claims && claims.role !== 'authenticated'
-        ? ` (the Clerk \`supabase\` template must set role=authenticated; token role=${claims.role})`
+        ? ` (session token lacks role=authenticated — add it in Clerk → Configure → Sessions → Customize session token; role=${claims.role})`
         : '';
     // Ask the DATABASE what it thinks of the request. If Supabase rejected
     // the token's SIGNATURE (Third-Party Auth not registered for the Clerk
@@ -168,25 +168,38 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
     setDbUser(null);
   }, []);
 
-  /** Apply the Clerk `supabase` template token, then sync the users row. */
+  /** Register the token getter so every Supabase request carries a fresh
+   *  Clerk session token (official third-party-auth wiring), then sync the
+   *  users row. Throws with a precise message when claims are off — the
+   *  role claim lives in Clerk → Configure → Sessions → Customize session
+   *  token, NOT a JWT template. */
   const runSync = useCallback(async () => {
     if (!user) throw new Error('No session user.');
-    const token = await applyClerkSupabaseToken(getToken);
+    const token = await getToken({}).catch(() => null);
     if (!token) {
-      throw new Error('no Supabase JWT — Clerk template "supabase" is missing or getToken failed');
+      throw new Error('no Clerk session token available');
     }
-    // Verify the bridge token BEFORE touching the DB, so a bad template is
-    // reported as such instead of surfacing as a generic RLS violation.
     const claims = decodeJwtClaims(token);
     if (!claims?.sub || claims.role !== 'authenticated') {
       throw new Error(
-        `Clerk JWT claims unexpected (sub=${claims?.sub ?? 'none'}, role=${claims?.role ?? 'none'}) — the template must set role=authenticated`,
+        `session token missing claims (sub=${claims?.sub ?? 'none'}, role=${claims?.role ?? 'none'}) — add {"role":"authenticated"} in Clerk → Configure → Sessions → Customize session token`,
       );
     }
     const row = await syncUserOnLogin(user);
     setSyncError(null);
     setDbUser(row);
   }, [getToken, user]);
+
+  // Keep the module-level token getter pointed at this session while signed
+  // in; every Supabase request mints a fresh Clerk session token through it.
+  useEffect(() => {
+    if (!clerkLoaded || !clerkSignedIn) {
+      setClerkTokenGetter(null);
+      return;
+    }
+    setClerkTokenGetter(async (opts) => getToken(opts ?? {}));
+    return () => setClerkTokenGetter(null);
+  }, [clerkLoaded, clerkSignedIn, getToken]);
 
   // Keep Supabase's client session in sync with the Clerk session and sync the
   // users row. All setState happens after awaits inside runSync / reportSyncError
@@ -214,7 +227,7 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     // End the Clerk session first, then drop the bridged Supabase session.
     await clerkSignOut();
-    await supabase?.auth.signOut().catch(() => undefined);
+    setClerkTokenGetter(null);
     setDbUser(null);
     setSyncError(null);
   }, [clerkSignOut]);
