@@ -70,7 +70,14 @@ export default function ConfirmReceiptScreen() {
       <View style={styles.body}>
         {isDemo && demoItem ? <ItemCard item={demoItem} staff /> : null}
         {loading ? <ItemCardSkeleton /> : null}
-        {real && !loading && item ? <StaffItemCard item={item} /> : null}
+        {real && !loading && item ? (
+          <View style={styles.stack}>
+            <StaffItemCard item={item} />
+            {item.reporter?.name ? (
+              <Text style={styles.reporter}>Reported by {item.reporter.name}</Text>
+            ) : null}
+          </View>
+        ) : null}
         {missing ? (
           <View style={styles.feedback}>
             <Text style={styles.feedbackText}>This item is no longer available.</Text>
@@ -98,6 +105,13 @@ export default function ConfirmReceiptScreen() {
           disabled={!matches || confirm.isPending}
           onPress={handleConfirm}
         />
+
+        <Button3
+          label="Not Received Yet"
+          variant="ghost"
+          height={48}
+          onPress={() => router.back()}
+        />
       </View>
     </V3Screen>
   );
@@ -105,6 +119,13 @@ export default function ConfirmReceiptScreen() {
 
 const styles = StyleSheet.create({
   body: { gap: 16, paddingHorizontal: 16, paddingBottom: 24 },
+  stack: { gap: 8 },
+  reporter: {
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    color: Colors.mutedForeground,
+    paddingLeft: 4,
+  },
   matchRow: {
     flexDirection: 'row',
     alignItems: 'center',

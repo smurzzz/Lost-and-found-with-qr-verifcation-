@@ -109,10 +109,12 @@ request body.)
 This endpoint:
 
 1. Verifies the caller has an authenticated **staff** session.
-2. Verifies `scannedQrCode` matches the item's stored `qr_code`.
+2. Verifies `scannedQrCode` matches the item's stored `qr_code` (the binding gate); signed-format tokens additionally pass server-side HMAC signature verification (`isSignedQrValid` — a scanned tag is never trusted from the client decode alone).
 3. Verifies the referenced `claimId` is `approved` (and belongs to that item).
 4. Writes the `released` audit_log row.
 5. Only then updates `items.status = 'claimed'`.
+
+**QR tags are signed tokens (09 §8/§11):** `qr_code` stores `<itemId>.<sig>` where `sig = base64url(HMAC-SHA256(itemId, CLAIMIT_QR_SECRET))`. The token is minted **only** server-side (Edge Functions, via the shared `_shared/claimit.ts` mint) and re-validated in `/release`; the client only ever renders/scans the value, never decodes it into a trusted payload. It is impossible to forge a valid tag without the `CLAIMIT_QR_SECRET` function secret, and each minted tag is unique (distinct item ids + the partial unique index on `items.qr_code`). Legacy `FND-XXXXX` tags from Phase 4 seeds remain valid exact-match lookups but no new tag is minted that way; a tampered token fails Step 2 via the stored-match gate (and, for signed-format tags, the HMAC check). Function secret required: `CLAIMIT_QR_SECRET` (mint helpers fail closed when unset).
 
 No other endpoint, UI action, or admin panel is permitted to set `items.status = 'claimed'`. This is enforced both by API design (no other route accepts that mutation) and by Postgres RLS policies restricting UPDATE on `items.status` to that function's service role.
 
@@ -123,7 +125,7 @@ POST /api/log-found
 body: { title, category, description, found_location, found_date? }
 ```
 
-Runs as the service role. Verifies an authenticated **staff** session (same Clerk-JWT check as `/release`), mints a unique `FND-xxxxx` QR tag server-side (backed by a partial unique index on `items.qr_code`), inserts the item with `source = 'staff_logged'`, `status = 'available'`, `confirmed_by`/`confirmed_at` set, then writes a `found` audit_log row. It never touches `claimed`; the non-negotiable release path above still owns that transition.
+Runs as the service role. Verifies an authenticated **staff** session (same Clerk-JWT check as `/release`), inserts the item with `source = 'staff_logged'`, `status = 'available'`, `confirmed_by`/`confirmed_at` set, mints the signed QR token over the resulting item id and stores it in `qr_code` (shared `_shared/claimit.ts` mint), then writes a `found` audit_log row. It never touches `claimed`; the non-negotiable release path above still owns that transition.
 
 ### Supporting endpoint — confirm receipt (staff, student-reported items)
 
@@ -132,9 +134,9 @@ POST /confirm-receipt
 body: { itemId }
 ```
 
-Also runs as the service role with the same staff auth contract. It loads the item and confirms exactly once: the item must be `source = 'student_reported'` **and** `status = 'pending_dropoff'` (anything else → `409`), then mints the server-side QR tag, transitions the item `pending_dropoff → available` with `confirmed_by`/`confirmed_at`, and writes a `confirmed` audit_log row. This is only legal inbound order to give a student-reported item a QR (CP-03/CP-04); `claimed` still belongs exclusively to `/release`.
+Also runs as the service role with the same staff auth contract. It loads the item and confirms exactly once: the item must be `source = 'student_reported'` **and** `status = 'pending_dropoff'` (anything else → `409`), then mints the signed QR token over the item id (same shared generation path as `/log-found`), transitions the item `pending_dropoff → available` with `confirmed_by`/`confirmed_at`, and writes a `confirmed` audit_log row. This is only legal inbound order to give a student-reported item a QR (CP-03/CP-04); `claimed` still belongs exclusively to `/release`.
 
-**Shared Edge Function module:** `/log-found`, `/confirm-receipt`, and `/release` all import `supabase/functions/_shared/claimit.ts` (CORS, JSON helpers, `uniqueQrCode` QR minting, `requireStaffUser` Clerk-JWT staff check) so the staff paths share one implementation (09 §9 — "don't duplicate this logic, share it"). `_shared` is bundled into each function at deploy time.
+**Shared Edge Function module:** `/log-found`, `/confirm-receipt`, and `/release` all import `supabase/functions/_shared/claimit.ts` (CORS, JSON helpers, `signedQrToken`/`isSignedQrValid` HMAC mint+verify, `requireStaffUser` Clerk-JWT staff check) so the staff paths share one implementation (09 §9 — "don't duplicate this logic, share it"). `_shared` is bundled into each function at deploy time.
 
 ## 5. Screen-to-module map
 

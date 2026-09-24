@@ -3,9 +3,10 @@
  */
 
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { CircleHelp, Settings } from 'lucide-react-native';
+import { ChevronRight, CircleHelp, Settings } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
@@ -14,14 +15,21 @@ import { V3Screen } from '@/components/v3/screen';
 import { initialsOf, useSession } from '@/lib/session';
 import { tabRoute } from '@/lib/v3-nav';
 
+// §13 decisions (documented): "Notification Settings" links to the device
+// notification settings (Linking.openSettings); "Help & Support" opens a
+// mailto to the school's placeholder support inbox. No in-app prefs screen.
+const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
+
 export default function StaffProfileScreen() {
   const role = 'staff' as const;
   const { dbUser, clerkUser, isDemo, setDemoRole, signOut } = useSession();
+  const queryClient = useQueryClient();
 
   const name = dbUser?.name ?? clerkUser?.name ?? 'Maya Chen';
   const initials = initialsOf(name);
 
   async function handleLogout() {
+    queryClient.clear();
     await signOut();
     router.replace('/login');
   }
@@ -64,14 +72,19 @@ export default function StaffProfileScreen() {
         )}
 
         <View style={[styles.settings, Shadows.card]}>
-          <View style={styles.settingsRow}>
+          <Pressable style={styles.settingsRow} onPress={() => Linking.openSettings()}>
             <Settings size={20} color={Colors.mutedForeground} />
             <Text style={styles.settingsLabel}>Notification Settings</Text>
-          </View>
-          <View style={[styles.settingsRow, styles.settingsRowLast]}>
+            <ChevronRight size={20} color={Colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            style={[styles.settingsRow, styles.settingsRowLast]}
+            onPress={() => Linking.openURL(HELP_MAILTO)}
+          >
             <CircleHelp size={20} color={Colors.mutedForeground} />
             <Text style={styles.settingsLabel}>Help &amp; Support</Text>
-          </View>
+            <ChevronRight size={20} color={Colors.mutedForeground} />
+          </Pressable>
         </View>
 
         <Button3

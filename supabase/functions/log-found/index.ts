@@ -1,8 +1,8 @@
 // ============================================================================
 // ClaimIt — POST /api/log-found      (02-ARCHITECTURE.md §4)
 // Runs as the service role. Creates a staff-logged found item with a server-
-// generated QR tag code plus a 'found' audit_log row, then returns the created
-// item so the client can render the real (scannable) QR tag.
+// generated signed QR token plus a 'found' audit_log row, then returns the
+// created item so the client can render the real (scannable) QR tag.
 //
 // Contract:
 //   POST /log-found
@@ -12,12 +12,16 @@
 //         (or 'admin'); the user's id becomes the item's confirmed_by and the
 //         audit actor.
 //
+// QR: the item row is inserted first, then qr_code is set to the signed token
+// `<itemId>.<HMAC-SHA256(itemId, CLAIMIT_QR_SECRET)>` (shared _shared/claimit.ts
+// mint — never client-side), so a tag can never be forged without the secret.
+//
 // A staff-logged item starts life in 'available' (it skips pending_dropoff).
-// The 'claimed' transition is still only reachable via /items/:id/release.
+// The 'claimed' transition is still only reachable via /release.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { CORS, fail, json, requireStaffUser, uniqueQrCode } from '../_shared/claimit.ts';
+import { CORS, fail, json, requireStaffUser, signedQrToken } from '../_shared/claimit.ts';
 
 const MAX_TITLE = 120;
 const MAX_CATEGORY = 60;
@@ -86,19 +90,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return fail(400, 'bad_body', `description is too long (max ${MAX_DESCRIPTION} characters).`);
   }
 
-  // --- Mint the server-side QR tag -------------------------------------------
-  const qrCode = await uniqueQrCode(admin);
-  if (!qrCode) {
-    return fail(500, 'qr_generation_failed', 'Could not allocate a unique QR tag.');
-  }
-
+  // --- Insert the item (qr_code is filled with the signed token below) ------
   const foundDate =
     body.found_date && !Number.isNaN(Date.parse(body.found_date))
       ? new Date(body.found_date).toISOString()
       : new Date().toISOString();
   const now = new Date().toISOString();
 
-  // --- Insert the item --------------------------------------------------------
   const { data: item, error: insertError } = await admin
     .from('items')
     .insert({
@@ -110,7 +108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       found_date: foundDate,
       source: 'staff_logged',
       status: 'available',
-      qr_code: qrCode,
+      qr_code: null,
       confirmed_by: staffId,
       confirmed_at: now,
     })
@@ -120,6 +118,38 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (insertError) {
     return fail(500, 'insert_failed', `Could not create the item: ${insertError.message}`);
   }
+
+  // --- Mint the signed QR token over the item id (server-only secret) -------
+  const qrCode = await signedQrToken(item.id);
+  if (!qrCode) {
+    await admin
+      .from('items')
+      .delete()
+      .eq('id', item.id)
+      .catch(() => undefined);
+    return fail(
+      500,
+      'qr_generation_failed',
+      'CLAIMIT_QR_SECRET is not configured; could not mint a signed QR tag.',
+    );
+  }
+  const { error: qrUpdateError } = await admin
+    .from('items')
+    .update({ qr_code: qrCode })
+    .eq('id', item.id);
+  if (qrUpdateError) {
+    await admin
+      .from('items')
+      .delete()
+      .eq('id', item.id)
+      .catch(() => undefined);
+    return fail(
+      500,
+      'qr_generation_failed',
+      `Could not attach the QR tag: ${qrUpdateError.message}`,
+    );
+  }
+  item.qr_code = qrCode;
 
   // --- Audit row (best-effort: the item is already committed above) ----------
   const { error: auditError } = await admin.from('audit_log').insert({

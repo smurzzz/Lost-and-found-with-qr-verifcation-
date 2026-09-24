@@ -4,9 +4,13 @@
 // Imported via `../_shared/claimit.ts` so the QR-minting + staff-auth paths
 // ship once (09-FUNCTIONALITY-PROMPT.md §9: "don't duplicate this logic,
 // share it"). `supabase functions deploy` bundles this file into each
-// function that imports it.
+// function that imports it. Covers CORS/JSON/fail helpers, the signed QR
+// token mint+verify (HMAC-SHA256 over the item id), and the staff JWT check.
 //
 // Deno + esm.sh types; this file is not part of the Expo tsc graph.
+//
+// Function secret required: CLAIMIT_QR_SECRET — QR mining fails closed (null)
+// when it is not set, so deployed functions never produce unsigned tags.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -29,33 +33,59 @@ export function fail(status: number, code: string, message: string): Response {
   return json({ error: { code, message } }, status);
 }
 
-// No 0/O/1/I — keeps printed tags unambiguous.
-const TAG_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+// ----------------------------------------------------------------------------
+// Signed QR tokens (09 §8 / §11): qr_code stores `<itemId>.<sig>` where sig =
+// base64url(HMAC-SHA256(itemId, CLAIMIT_QR_SECRET)). Tokens are minted ONLY by
+// server-side Edge Functions (this module) and verified again in /release —
+// the scan flow never trusts a client-decoded payload. Seeded FND-XXXXX tags
+// from before this change remain valid lookups, but new tags are always signed.
+// ----------------------------------------------------------------------------
 
-/** Random FND-XXXXX tag (5 chars from the unambiguous alphabet). */
-export function randomTag(): string {
-  const bytes = new Uint8Array(5);
-  crypto.getRandomValues(bytes);
-  let tag = '';
-  for (const byte of bytes) {
-    tag += TAG_ALPHABET[byte % TAG_ALPHABET.length];
-  }
-  return `FND-${tag}`;
+const QR_SECRET_VAR = 'CLAIMIT_QR_SECRET';
+
+function qrSecret(): string | null {
+  return Deno.env.get(QR_SECRET_VAR) ?? null;
 }
 
-/** Mint a unique tag (partial unique index on items.qr_code backs this up). */
-export async function uniqueQrCode(admin: AdminClient): Promise<string | null> {
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const tag = randomTag();
-    const { count, error } = await admin
-      .from('items')
-      .select('id', { count: 'exact', head: true })
-      .eq('qr_code', tag);
-    if (error) return null;
-    if ((count ?? 1) === 0) return tag;
-  }
-  return null;
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let bin = '';
+  for (const byte of bytes) bin += String.fromCharCode(byte);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+
+async function hmacSha256(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  return bytesToBase64Url(new Uint8Array(signature));
+}
+
+/** Mint `<itemId>.<sig>` for a specific item. Null if the secret is unset. */
+export async function signedQrToken(itemId: string): Promise<string | null> {
+  const secret = qrSecret();
+  if (!secret) return null;
+  const signature = await hmacSha256(secret, itemId);
+  return `${itemId}.${signature}`;
+}
+
+/** Verify a token's HMAC signature server-side. */
+export async function isSignedQrValid(token: string): Promise<boolean> {
+  const dot = token.indexOf('.');
+  if (dot <= 0 || dot === token.length - 1) return false;
+  const itemId = token.slice(0, dot);
+  const signature = token.slice(dot + 1);
+  const secret = qrSecret();
+  if (!secret) return false;
+  const expected = await hmacSha256(secret, itemId);
+  return signature === expected;
+}
+
+// --- Staff auth -------------------------------------------------------------
 
 interface ClerkClaims {
   sub?: string;

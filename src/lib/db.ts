@@ -48,6 +48,8 @@ export interface ItemRow {
   confirmed_by: string | null;
   confirmed_at: string | null;
   created_at: string;
+  /** Staff-readable reporter (join via items_reported_by_fkey; null for staff-logged). */
+  reporter?: Pick<UserRow, 'id' | 'name' | 'role'> | null;
 }
 
 export interface LostReportRow {
@@ -164,9 +166,13 @@ export async function fetchStudentReports(): Promise<ItemRow[]> {
   return (data ?? []) as ItemRow[];
 }
 
-/** One item by id (QR tag screen, release flow). */
+/** One item by id (QR tag screen, release flow). Includes who reported it. */
 export async function fetchItemById(id: string): Promise<ItemRow | null> {
-  const { data, error } = await client().from('items').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await client()
+    .from('items')
+    .select('*, reporter:users!items_reported_by_fkey(id, name, role)')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
   return (data as ItemRow) ?? null;
 }

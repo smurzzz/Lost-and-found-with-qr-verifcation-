@@ -1,21 +1,29 @@
 /**
  * QR Tag (staff) — v3 port (QrTag): brand mark, big QR tile, item line,
- * mono-ish id pill, "Staff verified" footer, Print/Done buttons.
+ * mono-ish id pill, status, "Staff verified" footer, Share/Done buttons.
  *
  * Phase 4: when a real item id is passed (after Log Found Item), the screen
- * renders that item with its server-minted qr_code as a genuinely scannable
- * QR. Without a param (e.g. the Phase 1 demo/confirm-receipt click-through) it
- * falls back to a generated placeholder tag.
+ * renders that item with its server-minted (signed) qr_code as a genuinely
+ * scannable QR. Without a param (e.g. the Phase 1 demo/confirm-receipt
+ * click-through) it falls back to a generated placeholder tag.
+ *
+ * §10 decision (documented): no native print plugin ships; "Print Tag" is
+ * exported as a platform SHARE/export sheet (react-native Share) carrying the
+ * tag id + item record, so staff can air-drop, email, or print the tag text
+ * from the share target. "Done" invalidates the items cache so the dashboard's
+ * Found Items tab reflects the new row without a manual refresh.
  */
 
-import { StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { ShieldCheck } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
-import { BrandMark, Button3, Header } from '@/components/v3/core';
+import { BrandMark, Button3, Header, StatusPill } from '@/components/v3/core';
+import { itemStatusToPill } from '@/components/v3/feed';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
@@ -34,6 +42,7 @@ export default function QrTagScreen() {
   const { isDemo } = useSession();
   const { itemId } = useLocalSearchParams<{ itemId?: string }>();
   const { data: item, isLoading } = useItem(isDemo ? null : itemId);
+  const queryClient = useQueryClient();
 
   const real = !isDemo && Boolean(itemId);
   const tagId = real ? (item?.qr_code ?? '') : generateTagId();
@@ -43,6 +52,28 @@ export default function QrTagScreen() {
       ? `${item.category} · ${item.found_location} · ${formatFoundDate(item.found_date, false)}`
       : ''
     : `Other · West Gym · ${todayStamp}`;
+  const pillStatus = real && item ? itemStatusToPill[item.status] : undefined;
+
+  async function handleShare() {
+    const message = real
+      ? [
+          'ClaimIt item tag',
+          `Item: ${item?.title ?? ''}`,
+          `Category: ${item?.category ?? ''}`,
+          `Found: ${item?.found_location ?? ''}`,
+          `Status: ${item?.status ?? ''}`,
+          `Tag ID: ${tagId}`,
+        ].join('\n')
+      : `ClaimIt tag: ${tagId} (demo)`;
+    await Share.share({ message }).catch(() => undefined);
+  }
+
+  function handleDone() {
+    if (real && itemId) {
+      void queryClient.invalidateQueries({ queryKey: ['items'] });
+    }
+    router.push('/(staff)/dashboard');
+  }
 
   return (
     <V3Screen
@@ -76,6 +107,11 @@ export default function QrTagScreen() {
           <View style={styles.idPill}>
             <Text style={styles.idText}>{tagId}</Text>
           </View>
+          {pillStatus ? (
+            <View style={styles.statusRow}>
+              <StatusPill status={pillStatus} />
+            </View>
+          ) : null}
           <View style={styles.verifiedRow}>
             <ShieldCheck size={20} color={Colors.success} />
             <Text style={styles.verifiedText}>Staff verified</Text>
@@ -84,10 +120,15 @@ export default function QrTagScreen() {
 
         <View style={styles.actions}>
           <View style={styles.action}>
-            <Button3 label="Print Tag" variant="outline" height={52} onPress={() => undefined} />
+            <Button3
+              label="Share Tag"
+              variant="outline"
+              height={52}
+              onPress={() => void handleShare()}
+            />
           </View>
           <View style={styles.action}>
-            <Button3 label="Done" height={52} onPress={() => router.push('/(staff)/dashboard')} />
+            <Button3 label="Done" height={52} onPress={handleDone} />
           </View>
         </View>
       </View>
@@ -145,6 +186,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     color: Colors.primary,
   },
+  statusRow: { marginTop: 12, alignItems: 'center' },
   verifiedRow: {
     marginTop: 24,
     flexDirection: 'row',

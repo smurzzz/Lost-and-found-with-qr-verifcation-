@@ -10,9 +10,12 @@
 //   auth: Bearer <Clerk JWT> — must resolve to a users row with role 'staff'
 //         (or 'admin'); the user's id becomes the audit actor.
 //
-// Steps (§4, verbatim):
+// Steps (§4, verbatim, with the §11 server-side re-validation):
 //   1. Verify the caller has an authenticated staff session.
-//   2. Verify scannedQrCode matches the item's stored qr_code.
+//   2. Verify scannedQrCode matches the item's stored qr_code; if the token
+//      is in the signed `<itemId>.<sig>` format it must also pass server-side
+//      HMAC verification (the client-side decode in the scan flow is never
+//      trusted on its own). Legacy FND-XXXXX seeds pass on stored match.
 //   3. Verify the referenced claimId is approved (and belongs to this item).
 //   4. Write the released audit_log row.
 //   5. Only then update items.status = 'claimed'.
@@ -28,7 +31,7 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { CORS, fail, json, requireStaffUser } from '../_shared/claimit.ts';
+import { CORS, fail, json, isSignedQrValid, requireStaffUser } from '../_shared/claimit.ts';
 
 interface ReleaseBody {
   itemId?: string;
@@ -85,6 +88,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   if (!item.qr_code || item.qr_code !== scannedQrCode) {
     return fail(409, 'qr_mismatch', 'Scanned QR does not match this item.');
+  }
+  // Signed-format tokens (`<itemId>.<sig>`; minted per 09 §8/§11) must ALSO pass
+  // server-side HMAC verification — the DB equality above is the binding gate,
+  // and this layer fails closed on forged/tampered tags in the signed format.
+  // Legacy FND-XXXXX seeds (no '.' section) are accepted on the exact stored
+  // match alone; they predate signing and still carry the same per-item DB
+  // binding. Rotating CLAIMIT_QR_SECRET invalidates previously minted tags,
+  // so reprint if it is ever rotated.
+  if (scannedQrCode.includes('.')) {
+    const signatureOk = await isSignedQrValid(scannedQrCode);
+    if (!signatureOk) {
+      return fail(
+        409,
+        'qr_mismatch',
+        'Scanned QR fails server-side signature verification (tampered tag?).',
+      );
+    }
   }
   if (item.status === 'claimed') {
     return fail(409, 'already_claimed', 'Item was already released.');

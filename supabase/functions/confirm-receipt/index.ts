@@ -2,9 +2,9 @@
 // ClaimIt — POST /confirm-receipt    (02-ARCHITECTURE.md §4 supporting endpoints)
 // Runs as the service role. Staff confirm a student-reported item's arrival:
 // the item transitions pending_dropoff → available for the first time, gets a
-// server-minted QR tag (the same shared generation path as /log-found), and a
-// 'confirmed' audit_log row is written. Returns the updated item so the client
-// can render the real (scannable) QR tag.
+// server-minted signed QR token (the same shared generation path as /log-found),
+// and a 'confirmed' audit_log row is written. Returns the updated item so the
+// client can render the real (scannable) QR tag.
 //
 // Contract:
 //   POST /confirm-receipt
@@ -18,11 +18,11 @@
 //   - source = 'student_reported'   (staff-logged items skip this step)
 //   - status = 'pending_dropoff'    (an item confirms exactly once)
 //
-// The 'claimed' transition is still only reachable via /items/:id/release.
+// The 'claimed' transition is still only reachable via /release.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { CORS, fail, json, requireStaffUser, uniqueQrCode } from '../_shared/claimit.ts';
+import { CORS, fail, json, requireStaffUser, signedQrToken } from '../_shared/claimit.ts';
 
 interface ConfirmBody {
   itemId?: string;
@@ -94,10 +94,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return fail(409, 'not_pending', message);
   }
 
-  // --- Mint the server-side QR tag -------------------------------------------
-  const qrCode = await uniqueQrCode(admin);
+  // --- Mint the server-side signed QR token over the item id ----------------
+  const qrCode = await signedQrToken(itemId);
   if (!qrCode) {
-    return fail(500, 'qr_generation_failed', 'Could not allocate a unique QR tag.');
+    return fail(
+      500,
+      'qr_generation_failed',
+      'CLAIMIT_QR_SECRET is not configured; could not mint a signed QR tag.',
+    );
   }
 
   const now = new Date().toISOString();

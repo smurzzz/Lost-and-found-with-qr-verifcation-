@@ -36,11 +36,11 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | SL-03 | Edit/delete an item before it's claimed        | ⏳     |
 | SL-04 | Search/filter found items by category and date | ⏳     |
 
-> Phase 4 status: SL-01 is **fully implemented** (Log Found form → `log-found` Edge Function → server-minted `FND-xxxxx` QR displayed on the QR Tag screen via `react-native-qrcode-svg`, real Found Items list on the dashboard). SL-02/03 are deferred by design (photo + edit/delete land after the release-flow constraint work). SL-04 needs a category/date filter on the staff list. All four stay ⏳ until a live run on device after the Phase 3 dashboard config is done.
+> Phase 4 status: SL-01 is **fully implemented** (Log Found form → `log-found` Edge Function → server-minted signed QR token displayed on the QR Tag screen via `react-native-qrcode-svg`, real Found Items list on the dashboard). SL-02/03 are deferred by design (photo + edit/delete land after the release-flow constraint work). SL-04 needs a category/date filter on the staff list. All four stay ⏳ until a live run on device after the Phase 3 dashboard config is done.
 
 ### Confirm Receipt (student-reported items)
 
-> Phase 8 status: the staff Student Reports tab lists real `pending_dropoff` items (`useStudentReports` → `fetchStudentReports`) and Confirm Receipt confirms through the new `/confirm-receipt` Edge Function — staff-gated, preconditioned on `source = 'student_reported'` + `status = 'pending_dropoff'` (confirms exactly once; 409 otherwise), mints the server-side QR via the shared `_shared/claimit.ts` path (same as `/log-found`), transitions the item to `available`, and writes a `confirmed` audit row (CP-04). Rows stay ⏳ until a live run.
+> Phase 8 status: the staff Student Reports tab lists real `pending_dropoff` items (`useStudentReports` → `fetchStudentReports`) and Confirm Receipt confirms through the new `/confirm-receipt` Edge Function — staff-gated, preconditioned on `source = 'student_reported'` + `status = 'pending_dropoff'` (confirms exactly once; 409 otherwise), mints the signed QR token via the shared `_shared/claimit.ts` path (same as `/log-found`), transitions the item to `available`, and writes a `confirmed` audit row (CP-04). Rows stay ⏳ until a live run.
 
 | ID    | Case                                                   | Status |
 | ----- | ------------------------------------------------------ | ------ |
@@ -89,7 +89,7 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | QR-02 | Cancel mid-scan leaves item unclaimed                | ⏳     |
 | QR-03 | Scan by unauthenticated/non-staff account is blocked | ⏳     |
 
-> Phase 9 status: code-complete — the release flow is fully wired (scan.tsx real expo-camera QR → `fetchItemByQrCode` resolve → release.tsx real item/claim sheet with the RLS-based approve step → `/release` Edge Function, itemId in body → released.tsx real response). CP-05 (invalid scans rejected — a bogus tag never reaches the sheet and `/release` returns `qr_mismatch`), CP-06 (release requires an approved claim — `409 claim_not_approved`), and CP-07 (every transition writes its audit row — `released` is written before `status='claimed'`) are code-verified but stay ⏳ until a live device run against a deployed `release` function. CP-01/CP-02 still guard the one-rule: only `/release` can set `claimed`, and the `items_status_lock` trigger backs it in DB.
+> Phase 9 status: code-complete — the release flow is fully wired (scan.tsx real expo-camera QR → `fetchItemByQrCode` resolve → release.tsx real item/claim sheet with the RLS-based approve step → `/release` Edge Function, itemId in body → released.tsx real response). CP-05 (invalid scans rejected — a bogus or tampered tag never reaches the sheet, and `/release` returns `qr_mismatch` after **server-side HMAC signature verification** of the scanned token), CP-06 (release requires an approved claim — `409 claim_not_approved`), and CP-07 (every transition writes its audit row — `released` is written before `status='claimed'`) are code-verified but stay ⏳ until a live device run against a deployed `release` function. CP-01/CP-02 still guard the one-rule: only `/release` can set `claimed`, and the `items_status_lock` trigger backs it in DB.
 
 ### Audit & Reporting
 
