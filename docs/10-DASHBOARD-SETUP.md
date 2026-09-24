@@ -33,8 +33,15 @@ click-through for the dashboards plus the CLI deploy commands.
      (`getToken({ template: 'supabase' })` in `authBridge.ts`).
    - Leave the signing key as the default ("Internal").
    - `role: 'authenticated'` is what makes Supabase RLS treat the caller as
-     a signed-in user; the automatic `sub` becomes `auth.uid()` and equals
-     the `users.id` we sync on first login.
+     a signed-in user; the automatic `sub` claim (the Clerk user id) is what
+     RLS policies compare against via `auth.jwt() ->> 'sub'`.
+
+   > **RLS must use `auth.jwt() ->> 'sub'`, never `auth.uid()`.** Clerk user
+   > ids are not UUIDs (`user_2xY…`), and `auth.uid()` casts `sub` to uuid —
+   > it returns NULL for every Clerk caller. Policies that use `auth.uid()`
+   > fail with "new row violates row-level security policy" on the first-login
+   > users insert. Migration `20250924000003_clerk_sub_rls_fix.sql` rewrites
+   > all of them to the raw `sub` string.
 
 ## 2. Supabase — accept Clerk tokens
 

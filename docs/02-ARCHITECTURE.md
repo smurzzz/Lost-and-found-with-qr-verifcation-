@@ -29,13 +29,13 @@
 
 **users**
 
-| column        | type                        | notes                                                                                                     |
-| ------------- | --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| id            | text                        | Clerk user id (like `user_2xY…`); synced to `users` on first login; RLS resolves `auth.uid()::text` to it |
-| role          | enum(student, staff, admin) |                                                                                                           |
-| name          | text                        |                                                                                                           |
-| email         | text                        | any Google account accepted (open signup)                                                                 |
-| class_or_dept | text                        | optional                                                                                                  |
+| column        | type                        | notes                                                                                                       |
+| ------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| id            | text                        | Clerk user id (like `user_2xY…`); synced to `users` on first login; RLS resolves `auth.jwt()->>'sub'` to it |
+| role          | enum(student, staff, admin) |                                                                                                             |
+| name          | text                        |                                                                                                             |
+| email         | text                        | any Google account accepted (open signup)                                                                   |
+| class_or_dept | text                        | optional                                                                                                    |
 
 **items**
 
