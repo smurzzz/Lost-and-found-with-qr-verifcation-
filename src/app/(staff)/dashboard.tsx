@@ -4,6 +4,9 @@
  *
  * Phase 4: the Found Items tab + first stat read real items via
  * useFoundItems (demo mode falls back to the Phase 1 mocks).
+ * Phase 7: the Pending Claims tab + stat read real claims via usePendingClaims.
+ * Phase 8: the Student Reports tab + stat read real pending_dropoff items via
+ * useStudentReports, and each card opens Confirm Receipt with its item id.
  */
 
 import { useState } from 'react';
@@ -19,7 +22,7 @@ import { ItemCardSkeleton } from '@/components/v3/skeleton';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
-import { useFoundItems } from '@/lib/hooks/use-items';
+import { useFoundItems, useStudentReports } from '@/lib/hooks/use-items';
 import { usePendingClaims } from '@/lib/hooks/use-claims';
 import { initialsOf, useSession } from '@/lib/session';
 import { items, staffPendingClaims } from '@/mocks/data';
@@ -32,12 +35,17 @@ export default function StaffDashboardScreen() {
   const { isDemo, dbUser } = useSession();
   const found = useFoundItems({ enabled: !isDemo });
   const pendingClaims = usePendingClaims({ enabled: !isDemo });
+  const studentReports = useStudentReports({ enabled: !isDemo });
   const realPendingClaims = pendingClaims.data ?? [];
+  const realStudentReports = studentReports.data ?? [];
 
   const studentReport = items.find((item) => item.status === 'dropoff');
   const realItems = found.data ?? [];
   const foundCount = isDemo ? items.length : realItems.length;
   const claimsCount = isDemo ? staffPendingClaims.length : realPendingClaims.length;
+  const reportsCount = isDemo
+    ? items.filter((item) => item.status === 'dropoff').length
+    : realStudentReports.length;
   const avatarText = dbUser?.name ? initialsOf(dbUser.name) : 'JS';
 
   const foundList = isDemo ? (
@@ -85,7 +93,7 @@ export default function StaffDashboardScreen() {
       <View style={styles.stats}>
         {[
           [String(foundCount), 'Found Items'],
-          ['3', 'Student Reports'],
+          [String(reportsCount), 'Student Reports'],
           [String(claimsCount), 'Pending Claims'],
         ].map(([value, label]) => (
           <View key={label} style={[styles.statCard, Shadows.card]}>
@@ -128,12 +136,55 @@ export default function StaffDashboardScreen() {
 
       <View style={styles.list}>
         {tab === 'Found Items' ? foundList : null}
-        {tab === 'Student Reports' && studentReport ? (
-          <ItemCard
-            item={studentReport}
-            staff
-            onOpen={() => router.push('/(staff)/confirm-receipt')}
-          />
+        {tab === 'Student Reports' ? (
+          isDemo ? (
+            studentReport ? (
+              <ItemCard
+                item={studentReport}
+                staff
+                onOpen={() => router.push('/(staff)/confirm-receipt')}
+              />
+            ) : null
+          ) : studentReports.isLoading ? (
+            [0, 1, 2].map((index) => <ItemCardSkeleton key={index} />)
+          ) : studentReports.isError ? (
+            <View style={styles.listError}>
+              <Text style={styles.listErrorTitle}>Couldn&apos;t load student reports</Text>
+              <Text style={styles.listErrorMessage}>
+                {studentReports.error instanceof Error
+                  ? studentReports.error.message
+                  : 'Student reports are unavailable right now.'}
+              </Text>
+              <View style={styles.listErrorButton}>
+                <Button3
+                  label="Retry"
+                  variant="outline"
+                  height={44}
+                  onPress={() => void studentReports.refetch()}
+                />
+              </View>
+            </View>
+          ) : realStudentReports.length === 0 ? (
+            <View style={styles.listError}>
+              <Text style={styles.listErrorTitle}>No student reports</Text>
+              <Text style={styles.listErrorMessage}>
+                Items students are dropping off appear here for confirmation.
+              </Text>
+            </View>
+          ) : (
+            realStudentReports.map((item) => (
+              <StaffItemCard
+                key={item.id}
+                item={item}
+                onOpen={() =>
+                  router.push({
+                    pathname: '/(staff)/confirm-receipt',
+                    params: { itemId: item.id },
+                  })
+                }
+              />
+            ))
+          )
         ) : null}
         {tab === 'Pending Claims' ? (
           isDemo ? (

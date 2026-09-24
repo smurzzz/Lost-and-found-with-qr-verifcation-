@@ -116,6 +116,20 @@ export async function fetchItems(category?: string): Promise<ItemRow[]> {
   return (data ?? []) as ItemRow[];
 }
 
+/**
+ * Student-reported items still awaiting staff confirmation (dashboard
+ * "Student Reports" tab). RLS lets staff read all items.
+ */
+export async function fetchStudentReports(): Promise<ItemRow[]> {
+  const { data, error } = await client()
+    .from('items')
+    .select('*')
+    .eq('status', 'pending_dropoff')
+    .order('found_date', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ItemRow[];
+}
+
 /** One item by id (QR tag screen, release flow). */
 export async function fetchItemById(id: string): Promise<ItemRow | null> {
   const { data, error } = await client().from('items').select('*').eq('id', id).maybeSingle();
@@ -186,34 +200,9 @@ export async function insertStaffFoundItem(input: {
   return data as ItemRow;
 }
 
-/** Staff confirm receipt: pending_dropoff → available + QR + audit row. */
-export async function confirmReceipt(input: {
-  itemId: string;
-  staffId: string;
-  qrCode: string;
-}): Promise<void> {
-  const db = client();
-  const { error: updateError } = await db
-    .from('items')
-    .update({
-      status: 'available',
-      qr_code: input.qrCode,
-      confirmed_by: input.staffId,
-      confirmed_at: new Date().toISOString(),
-    })
-    .eq('id', input.itemId);
-  if (updateError) throw updateError;
-
-  const { error: auditError } = await db.from('audit_log').insert({
-    item_id: input.itemId,
-    event_type: 'confirmed',
-    actor_id: input.staffId,
-    note: 'Receipt confirmed; QR tag generated.',
-  });
-  if (auditError) throw auditError;
-}
-
-/** Submit a claim (status: pending). */
+/**
+ * Submit a claim (status: pending).
+ */
 export async function insertClaim(input: {
   item_id: string;
   claimant_id: string;

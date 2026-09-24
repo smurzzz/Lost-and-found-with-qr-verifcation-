@@ -38,6 +38,16 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 
 > Phase 4 status: SL-01 is **fully implemented** (Log Found form → `log-found` Edge Function → server-minted `FND-xxxxx` QR displayed on the QR Tag screen via `react-native-qrcode-svg`, real Found Items list on the dashboard). SL-02/03 are deferred by design (photo + edit/delete land after the release-flow constraint work). SL-04 needs a category/date filter on the staff list. All four stay ⏳ until a live run on device after the Phase 3 dashboard config is done.
 
+### Confirm Receipt (student-reported items)
+
+> Phase 8 status: the staff Student Reports tab lists real `pending_dropoff` items (`useStudentReports` → `fetchStudentReports`) and Confirm Receipt confirms through the new `/confirm-receipt` Edge Function — staff-gated, preconditioned on `source = 'student_reported'` + `status = 'pending_dropoff'` (confirms exactly once; 409 otherwise), mints the server-side QR via the shared `_shared/claimit.ts` path (same as `/log-found`), transitions the item to `available`, and writes a `confirmed` audit row (CP-04). Rows stay ⏳ until a live run.
+
+| ID    | Case                                                   | Status |
+| ----- | ------------------------------------------------------ | ------ |
+| CR-01 | Student Reports tab lists a real pending drop-off item | ⏳     |
+| CR-02 | Confirm generates QR + status → `available` (CP-04)    | ⏳     |
+| CR-03 | Confirming twice (or a non-pending item) is rejected   | ⏳     |
+
 ### Student Reporting
 
 | ID    | Case                                              | Status |

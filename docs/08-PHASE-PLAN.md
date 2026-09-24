@@ -189,10 +189,12 @@ Implemented: **Claim Verification** now submits a real claim — `useClaimItem` 
 
 ## Phase 8 — Confirm Receipt (wire the real thing)
 
-- [ ] Staff Student Reports tab fetches real `pending_dropoff` items
-- [ ] Confirm Receipt screen writes the real status transition and generates the QR
+- [x] Staff Student Reports tab fetches real `pending_dropoff` items
+- [x] Confirm Receipt screen writes the real status transition and generates the QR
 
-**Exit criterion:** CP-04 passes.
+Implemented: the staff `Student Reports` tab reads real `pending_dropoff` items via `useStudentReports` → `fetchStudentReports` (loading/error/retry/empty states, live stat count, card → `confirm-receipt?itemId=`). Confirm Receipt resolves the item by id, requires the "details match" checkbox, and confirms through the new `/confirm-receipt` Edge Function: staff-gated (same auth contract as `/log-found`), preconditioned on `source = 'student_reported'` **and** `status = 'pending_dropoff'` (confirms exactly once — a second attempt or a non-pending item gets `409`), mints the server-side `FND-xxxxx` QR through the shared `supabase/functions/_shared/claimit.ts` helpers (CORS/json/fail, QR minting, `requireStaffUser` — `log-found` now imports the same module per 09 §9 "share, don't duplicate"), transitions the item `pending_dropoff → available` with `confirmed_by`/`confirmed_at`, writes a `confirmed` audit row, and routes to `qr-tag?itemId=` (the real scannable QR). The old client-side RLS `confirmReceipt` helper was removed (no callers; it would have minted the QR on-device). No schema migration was needed.
+
+**Exit criterion:** CP-04 passes — `qr_code` stays null until a staff confirm, then it's populated and the item becomes `available`. Live steps: `supabase functions deploy _shared confirm-receipt log-found` (shared module is bundled at deploy), then confirm a seeded student-reported item from the dashboard.
 
 ---
 

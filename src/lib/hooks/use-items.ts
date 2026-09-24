@@ -6,8 +6,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { logFoundItem, type LogFoundInput } from '@/lib/api/items';
-import { fetchItemById, fetchItems } from '@/lib/db';
+import { confirmReceivedItem, logFoundItem, type LogFoundInput } from '@/lib/api/items';
+import { fetchItemById, fetchItems, fetchStudentReports } from '@/lib/db';
 
 interface UseItemsOptions {
   enabled?: boolean;
@@ -18,6 +18,16 @@ export function useFoundItems(options: UseItemsOptions = {}) {
   return useQuery({
     queryKey: ['items', 'found'],
     queryFn: () => fetchItems(),
+    staleTime: 30_000,
+    enabled: options.enabled ?? true,
+  });
+}
+
+/** Student-reported items awaiting staff confirmation (dashboard tab). */
+export function useStudentReports(options: UseItemsOptions = {}) {
+  return useQuery({
+    queryKey: ['items', 'student_reports'],
+    queryFn: () => fetchStudentReports(),
     staleTime: 30_000,
     enabled: options.enabled ?? true,
   });
@@ -38,6 +48,19 @@ export function useLogFoundItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: LogFoundInput) => logFoundItem(input),
+    onSuccess: (item) => {
+      // Seed the detail cache so the QR Tag screen renders instantly.
+      queryClient.setQueryData(['item', item.id], item);
+      void queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
+/** Staff confirm-receipt: Edge Function, seeds the detail + refreshes lists. */
+export function useConfirmReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => confirmReceivedItem(itemId),
     onSuccess: (item) => {
       // Seed the detail cache so the QR Tag screen renders instantly.
       queryClient.setQueryData(['item', item.id], item);

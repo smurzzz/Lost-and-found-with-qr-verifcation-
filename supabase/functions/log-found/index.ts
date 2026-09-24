@@ -17,14 +17,8 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { CORS, fail, json, requireStaffUser, uniqueQrCode } from '../_shared/claimit.ts';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-};
-
-// No 0/O/1/I — keeps printed tags unambiguous.
-const TAG_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_TITLE = 120;
 const MAX_CATEGORY = 60;
 const MAX_DESCRIPTION = 2000;
@@ -36,49 +30,6 @@ interface LogFoundBody {
   description?: string;
   found_location?: string;
   found_date?: string;
-}
-
-interface ClerkClaims {
-  sub?: string;
-}
-
-// Deno + esm.sh types; this file is not part of the Expo tsc graph.
-type AdminClient = ReturnType<typeof createClient>;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  });
-}
-
-function fail(status: number, code: string, message: string): Response {
-  return json({ error: { code, message } }, status);
-}
-
-/** Random FND-XXXXX tag (5 chars from the unambiguous alphabet). */
-function randomTag(): string {
-  const bytes = new Uint8Array(5);
-  crypto.getRandomValues(bytes);
-  let tag = '';
-  for (const byte of bytes) {
-    tag += TAG_ALPHABET[byte % TAG_ALPHABET.length];
-  }
-  return `FND-${tag}`;
-}
-
-/** Mint a unique tag (partial unique index on items.qr_code backs this up). */
-async function uniqueQrCode(admin: AdminClient): Promise<string | null> {
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const tag = randomTag();
-    const { count, error } = await admin
-      .from('items')
-      .select('id', { count: 'exact', head: true })
-      .eq('qr_code', tag);
-    if (error) return null;
-    if ((count ?? 1) === 0) return tag;
-  }
-  return null;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -100,37 +51,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   });
 
   // --- Auth: authenticated staff session (same contract as release) --------
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return fail(401, 'unauthenticated', 'Missing bearer token.');
+  const auth = await requireStaffUser(req, admin);
+  if (!auth.ok) {
+    return auth.response;
   }
-  const token = authHeader.slice('Bearer '.length);
-  let staffId: string | null = null;
-  try {
-    const payloadPart = token.split('.')[1];
-    const claims = JSON.parse(
-      atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')),
-    ) as ClerkClaims;
-    staffId = claims.sub ?? null;
-  } catch {
-    return fail(401, 'unauthenticated', 'Malformed bearer token.');
-  }
-  if (!staffId) {
-    return fail(401, 'unauthenticated', 'Token has no subject.');
-  }
-
-  const { data: staffUser, error: staffError } = await admin
-    .from('users')
-    .select('id, role')
-    .eq('id', staffId)
-    .single();
-
-  if (staffError || !staffUser) {
-    return fail(403, 'unknown_user', 'Caller is not a registered user.');
-  }
-  if (staffUser.role !== 'staff' && staffUser.role !== 'admin') {
-    return fail(403, 'forbidden', 'Only staff can log found items.');
-  }
+  const staffId = auth.staffId;
 
   // --- Parse + validate body -------------------------------------------------
   let body: LogFoundBody;
