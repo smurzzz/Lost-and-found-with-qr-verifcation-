@@ -1,25 +1,22 @@
 -- ============================================================================
 -- ClaimIt — apply the Clerk sub-based RLS fix AND verify it, in one run.
+-- (v2 — fixes the double-quoted LIKE literal that errored with 42703, and
+--  replaces the BEGIN/ROLLBACK probe with an exception-safe DO block so no
+--  statement in this file can roll back the others.)
 --
 -- HOW TO USE
---   1. Supabase Dashboard → SQL Editor. Check the PROJECT DROPDOWN at the
---      top of the editor: it must be the project the app uses
---      (ref: yunhwfguknapqtrjouwv). Wrong project = the #1 silent failure.
+--   1. Supabase Dashboard → SQL Editor. Confirm the PROJECT is the one the
+--      app uses (ref: yunhwfguknapqtrjouwv).
 --   2. Paste the WHOLE file → Run.
---   3. Read the results:
---        • Result 1 = policies (users_insert_self with_check must contain
---          "auth.jwt() ->> 'sub'")
---        • Result 2 = fix status ("fixed" or "STILL BROKEN")
---        • Result 3 = simulated insert verdict ("INSERT PASSED" or the reason)
---
---   If Result 3 says INSERT PASSED but the app still shows 42501, the token
---   the app sends differs from the simulation — tell me exactly what the
---   login screen says after reloading the app (web: hard refresh).
+--   3. Read the output:
+--        • Table 1 = live policies on users
+--        • Table 2 = "fixed ✅" or "STILL BROKEN — …"
+--        • Messages tab = "PROBE RESULT: INSERT PASSED …" or the rejection
+--          reason
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
 -- 1. Re-apply the critical policies (idempotent — safe to run repeatedly).
---    Each statement is wrapped so one failure cannot roll back the rest.
 -- ---------------------------------------------------------------------------
 
 create or replace function current_user_role()
@@ -55,7 +52,7 @@ create policy audit_log_select on audit_log
   using ((select auth.jwt() ->> 'sub') is not null);
 
 -- ---------------------------------------------------------------------------
--- 2. Verify: show the live policies on users.
+-- 2. Show the live policies on users (eyeball check).
 -- ---------------------------------------------------------------------------
 
 select policyname, cmd, with_check
@@ -64,12 +61,12 @@ where schemaname = 'public' and tablename = 'users'
 order by policyname;
 
 -- ---------------------------------------------------------------------------
--- 3. Verify: did the fix stick?
+-- 3. Status: did the fix stick? (single-quoted LIKE literal, '' escaped)
 -- ---------------------------------------------------------------------------
 
 select case
-         when with_check like "%auth.jwt() ->> 'sub'%" then 'fixed ✅'
-         else 'STILL BROKEN — with_check is: ' || with_check
+         when with_check like '%auth.jwt() ->> ''sub''%' then 'fixed ✅'
+         else 'STILL BROKEN — with_check is: ' || coalesce(with_check, 'null')
        end as users_insert_self_status
 from pg_policies
 where schemaname = 'public'
@@ -77,21 +74,37 @@ where schemaname = 'public'
   and policyname = 'users_insert_self';
 
 -- ---------------------------------------------------------------------------
--- 4. Verify: simulate the app's insert exactly as PostgREST would run it,
---    with a synthetic Clerk token. Rolled back immediately after.
+-- 4. Probe: simulate the app's insert as a Clerk caller. Exception-safe —
+--    a rejection is reported, not thrown, and the probe row is cleaned up.
+--    Output appears in the SQL editor's Messages tab.
 -- ---------------------------------------------------------------------------
 
-begin;
-  select set_config('role', 'authenticated', true);
-  select set_config(
+do $probe$
+declare
+  probe_err text;
+begin
+  -- Emulate what PostgREST does for a Clerk JWT:
+  perform set_config('role', 'authenticated', true);
+  perform set_config(
     'request.jwt.claims',
     '{"sub":"user_2DIAGNOSTICPROBE","role":"authenticated"}',
     true
   );
 
-  insert into users (id, role, name, email)
-  values ('user_2DIAGNOSTICPROBE', 'student', 'RLS Probe', 'probe@claimit.test');
+  begin
+    insert into users (id, role, name, email)
+    values ('user_2DIAGNOSTICPROBE', 'student', 'RLS Probe', 'probe@claimit.test');
+  exception when others then
+    probe_err := sqlerrm;
+  end;
 
-  select 'INSERT PASSED — database side is healthy ✅' as simulation
-  from users where id = 'user_2DIAGNOSTICPROBE';
-rollback;
+  -- Back to the session role so the cleanup delete bypasses RLS.
+  perform set_config('role', '', true);
+
+  if probe_err is null then
+    delete from users where id = 'user_2DIAGNOSTICPROBE';
+    raise notice 'PROBE RESULT: INSERT PASSED — database side is healthy ✅ (if the app still fails, the token it sends differs — tell me the new login-screen error)';
+  else
+    raise notice 'PROBE RESULT: insert rejected → %', probe_err;
+  end if;
+end $probe$;
