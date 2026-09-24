@@ -144,10 +144,26 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
     // treats us as anon and the insert fails RLS — surface that diagnosis.
     const token = await getSupabaseAccessToken().catch(() => null);
     const claims = token ? decodeJwtClaims(token) : null;
-    const hint =
+    let hint =
       claims && claims.role !== 'authenticated'
         ? ` (the Clerk \`supabase\` template must set role=authenticated; token role=${claims.role})`
         : '';
+    // Ask the DATABASE what it thinks of the request. If Supabase rejected
+    // the token's SIGNATURE (Third-Party Auth not registered for the Clerk
+    // domain), the claims look fine to us but the DB sees an anon caller —
+    // this surfaces that gap definitively.
+    if (supabase) {
+      const { data: who } = await supabase.rpc('who_am_i').then(
+        (res) => res,
+        () => ({ data: null }),
+      );
+      const seen = who as { jwt_role?: string; sub?: string | null } | null;
+      if (seen) {
+        hint += ` [db sees: role=${seen.jwt_role ?? '?'}, sub=${seen.sub ?? 'null'}]`;
+      } else {
+        hint += ' [run supabase/who-am-i.sql to enable db-side diagnosis]';
+      }
+    }
     setSyncError(`Sign-in sync failed — ${detail}${hint}`);
     setDbUser(null);
   }, []);
