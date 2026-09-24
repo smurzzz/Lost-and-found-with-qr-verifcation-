@@ -141,41 +141,49 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
 
 ## Phase 4 — Staff Logging (wire the real thing)
 
-- [ ] Log Found Item form writes to `items`, QR generated server-side immediately
-- [ ] QR Tag Ready screen displays the real generated QR
-- [ ] Staff Found Items list fetches real data, replacing the Phase 1 mock
+- [x] Log Found Item form writes to `items`, QR generated server-side immediately
+- [x] QR Tag Ready screen displays the real generated QR
+- [x] Staff Found Items list fetches real data, replacing the Phase 1 mock
 
-**Exit criterion:** staff can log a real item and get a scannable QR end to end.
+Implemented: `log-found` Edge Function (staff-only, mints `FND-xxxxx`, inserts item `source=staff_logged`/`status=available`, writes `found` audit row), `react-native-qrcode-svg` for real scannable QRs, `/lib/api` + `/lib/hooks` React Query wiring, controlled + validated Log Found form, and a DB-driven Found Items list (demo mode keeps the Phase 1 mocks). Dependency & schema changes: `react-native-qrcode-svg` (see LIBRARY-DOCS), migration `20250924000003_phase4_qr_unique.sql`.
+
+**Exit criterion:** staff can log a real item and get a scannable QR end to end — code-complete; close the ⏳ in `05-TESTING-REPORT.md` SL-01 with a live run (blocked only by the Phase 3 dashboard config steps).
 
 ---
 
 ## Phase 5 — Student Reporting (wire the real thing)
 
-- [ ] Report Lost Item writes to `lost_reports`
-- [ ] Report Found Item writes to `items` with `pending_dropoff`, no QR yet
-- [ ] My Lost Reports list fetches real data
+- [x] Report Lost Item writes to `lost_reports`
+- [x] Report Found Item writes to `items` with `pending_dropoff`, no QR yet
+- [x] My Lost Reports list fetches real data
 
-**Exit criterion:** CP-03 passes — a student-reported item has no QR until staff acts.
+Implemented: `ReportLostScreen`/`ReportFoundScreen` submit through `/lib/hooks` (React Query) into the RLS-guarded `insertLostReport` / `insertStudentFoundItem` helpers; the shared `ReportForm` gained an "Item name" field for Found reports (the `items.title` column is NOT NULL — the Phase 1 mock didn't need one), a `busy`/`submitError` state, and a typed `onSubmit(values)` callback. The student home's "My Lost Reports" section now renders real rows via `LostReportCard` (status-aware pill), with demo-mode fallback to the mock card. The student-reported item keeps `status = pending_dropoff`, `qr_code = NULL` — QR is only minted server-side when staff confirm (CP-03).
+
+**Exit criterion:** CP-03 passes — a student-reported item has no QR until staff acts. Code-complete; live-verify against the migration `20250924000000_phase2_schema.sql` default + RLS student-insert policy (SR-01/02/03 in `05-TESTING-REPORT.md`).
 
 ---
 
 ## Phase 6 — Shared Feed & Matching (wire the real thing)
 
-- [ ] Student Home feed fetches real combined items (staff-logged + student-reported)
-- [ ] Category filter + search hit real data
-- [ ] Mine / Not mine wired to real claim creation / local dismissal
-- [ ] Matching logic implemented server-side; push notification sent on probable match
+- [x] Student Home feed fetches real combined items (staff-logged + student-reported)
+- [x] Category filter + search hit real data
+- [x] Mine / Not mine wired to real claim creation / local dismissal
+- [x] Matching logic implemented server-side; push notification sent on probable match
 
-**Exit criterion:** a lost report seeded in Phase 2's test data correctly surfaces a real notification against a matching item.
+Implemented: the home feed (and the shared Search tab) now render real `items` rows via `useFoundItems` through `Feed`'s new `dbItems`/`dbLoading` mode — search and category chips filter live data, `claimed` items are hidden, and "Not mine" dismisses locally (phase-agnostic). Cards use the new `StudentItemCard`; tapping **Mine** routes to `claim-verify` with the real `itemId` param, where the live `ItemRow` is resolved via `useItem` (the claim INSERT itself is Phase 7). Matching is server-side: `find_possible_matches(report_id)` (migration `20250924000004_phase6_matching.sql` — category exact + 14-day window + description-keyword overlap OR location proximity) is run by the new `/match` Edge Function (owner or staff-gated), which flips the report to `possible_match` + writes `matched` audit rows once, then best-effort pushes an Expo notification to `users.push_token`. The client registers its token (`src/lib/push.ts` + `usePushTokenSync`) and `report-lost` triggers `/match` right after filing a report.
+
+**Exit criterion:** the Phase 2 seeded lost report (Electronics headphones, Student Center) matches the White headphones item via category + keyword overlap — verified by calling `/match` for report `20000000-0000-4000-8000-000000000001` with Alex's device push token registered. That surfaces a real notification (see live steps in `07-PROGRESS-TRACKER.md`).
 
 ---
 
 ## Phase 7 — Claims (wire the real thing)
 
-- [ ] Claim Verification writes to `claims`
-- [ ] Staff Pending Claims tab fetches real pending claims
+- [x] Claim Verification writes to `claims`
+- [x] Staff Pending Claims tab fetches real pending claims
 
-**Exit criterion:** CP-06 passes — a claim must exist and be approved before release is possible.
+Implemented: **Claim Verification** now submits a real claim — `useClaimItem` → RLS-guarded `insertClaim` (claim `pending` + `claim_requested` audit), and migration `20250924000005_phase7_claims.sql` adds a server-side trigger that moves the item `available → pending_claim` (never `claimed`, and never touching unconfirmed `pending_dropoff` items) plus a partial unique index enforcing one _pending_ claim per item. The submit button validates the distinctive-detail field, shows busy/error states, and routes to claim-success on success. The **Staff Pending Claims tab** fetches real `pending` claims joined with the claimant name and item details via `usePendingClaims` → `fetchPendingClaims` (RLS lets staff read all claims/users/items, so no Edge Function is needed), with loading/error/retry/empty states and the stat card wired to the live count; demo mode keeps the mock list.
+
+**Exit criterion:** CP-06 passes — a claim must exist and be approved before release is possible. With Phase 7, claims rows are real (status `pending`), the item reflects `pending_claim`, and staff see them in the tab; the _approved_ decision + release gate still land in Phase 9.
 
 ---
 

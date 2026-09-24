@@ -58,6 +58,7 @@ const DEMO_USERS: Record<'student' | 'staff', UserRow> = {
     name: 'Alex Morgan',
     email: 'alex.morgan@school.edu',
     class_or_dept: 'Class 10B',
+    push_token: null,
     created_at: new Date().toISOString(),
   },
   staff: {
@@ -66,6 +67,7 @@ const DEMO_USERS: Record<'student' | 'staff', UserRow> = {
     name: 'Maya Chen',
     email: 'maya.chen@school.edu',
     class_or_dept: 'Front Desk',
+    push_token: null,
     created_at: new Date().toISOString(),
   },
 };

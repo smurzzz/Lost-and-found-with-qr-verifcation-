@@ -1,24 +1,68 @@
 /**
  * Verify Your Claim — v3 port (ClaimScreen). Item summary card +
  * distinctive-detail textarea → claim success.
+ *
+ * Phase 6: the student feed passes a real item id; this screen resolves the
+ * live ItemRow via useItem (mocks are the demo fallback).
+ * Phase 7: "Submit Claim" writes a real claim — insertClaim (claim 'pending',
+ * 'claim_requested' audit) and migration 05's trigger moves the item
+ * available → pending_claim server-side. Demo mode keeps the mock navigate.
  */
 
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Image } from 'expo-image';
+import { PackageCheck } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header, StatusPill, TextArea3 } from '@/components/v3/core';
+import { itemStatusToPill } from '@/components/v3/feed';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
+import { useItem } from '@/lib/hooks/use-items';
+import { useClaimItem } from '@/lib/hooks/use-claims';
+import { useSession } from '@/lib/session';
 import { items } from '@/mocks/data';
 
 export default function ClaimVerifyScreen() {
   const [detail, setDetail] = useState('');
-  const item = items[1]; // White headphones, per the source.
+  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
+  const { isDemo, dbUser } = useSession();
+  const itemQuery = useItem(isDemo ? null : (itemId ?? null));
+  const item = itemQuery.data;
+  const claim = useClaimItem();
+
+  const demoItem = items.find((candidate) => candidate.id === itemId) ?? items[1]; // White headphones.
+  const name = isDemo ? demoItem.name : item?.title;
+  const meta = isDemo
+    ? `${demoItem.category} · ${demoItem.location}`
+    : item
+      ? `${item.category} · ${item.found_location}`
+      : undefined;
+  const image = isDemo ? demoItem.image : undefined;
+  const pillStatus = isDemo ? 'pending' : item ? itemStatusToPill[item.status] : undefined;
+  const canSubmit = isDemo || Boolean(item && dbUser && detail.trim());
+
+  function handleSubmit() {
+    if (isDemo) {
+      router.push('/(student)/claim-success');
+      return;
+    }
+    if (!item || !dbUser) return;
+    claim.mutate(
+      {
+        item_id: item.id,
+        claimant_id: dbUser.id,
+        verification_answer: detail.trim(),
+      },
+      {
+        onSuccess: () => router.push('/(student)/claim-success'),
+      },
+    );
+  }
 
   return (
     <V3Screen
@@ -33,18 +77,42 @@ export default function ClaimVerifyScreen() {
       <Header title="Verify Your Claim" onBack={() => router.push('/(student)/home')} />
       <View style={styles.body}>
         <View style={[styles.itemCard, Shadows.card]}>
-          <Image source={item.image} style={styles.itemImage} contentFit="cover" transition={0} />
-          <View style={styles.itemBody}>
-            <View style={styles.itemTop}>
-              <View style={styles.itemText}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>
-                  {item.category} · {item.location}
+          {itemQuery.isLoading && !isDemo ? (
+            <View style={styles.itemImage}>
+              <View style={styles.itemImagePlaceholder}>
+                <Text style={styles.itemImagePlaceholderText}>Loading item…</Text>
+              </View>
+            </View>
+          ) : isDemo || item ? (
+            <>
+              {image ? (
+                <Image source={image} style={styles.itemImage} contentFit="cover" transition={0} />
+              ) : (
+                <View style={styles.itemImage}>
+                  <View style={styles.itemImagePlaceholder}>
+                    <PackageCheck size={48} color={Colors.card} />
+                  </View>
+                </View>
+              )}
+              <View style={styles.itemBody}>
+                <View style={styles.itemTop}>
+                  <View style={styles.itemText}>
+                    <Text style={styles.itemName}>{name}</Text>
+                    <Text style={styles.itemMeta}>{meta}</Text>
+                  </View>
+                  {pillStatus ? <StatusPill status={pillStatus} /> : null}
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.itemImage}>
+              <View style={styles.itemImagePlaceholder}>
+                <Text style={styles.itemImagePlaceholderText}>
+                  {itemQuery.isError ? 'Could not load this item.' : 'Item not found.'}
                 </Text>
               </View>
-              <StatusPill status="pending" />
             </View>
-          </View>
+          )}
         </View>
 
         <View>
@@ -61,7 +129,21 @@ export default function ClaimVerifyScreen() {
           />
         </View>
 
-        <Button3 label="Submit Claim" onPress={() => router.push('/(student)/claim-success')} />
+        {claim.isError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>
+              {claim.error instanceof Error
+                ? claim.error.message
+                : 'Could not submit your claim. Please try again.'}
+            </Text>
+          </View>
+        ) : null}
+
+        <Button3
+          label={claim.isPending ? 'Submitting…' : 'Submit Claim'}
+          disabled={!canSubmit || claim.isPending}
+          onPress={handleSubmit}
+        />
       </View>
     </V3Screen>
   );
@@ -77,6 +159,22 @@ const styles = StyleSheet.create({
   itemImage: {
     width: '100%',
     aspectRatio: 2 / 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.muted,
+  },
+  itemImagePlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemImagePlaceholderText: {
+    fontSize: 12,
+    textAlign: 'center',
+    color: Colors.card,
   },
   itemBody: { padding: 16 },
   itemTop: {
@@ -109,4 +207,15 @@ const styles = StyleSheet.create({
     color: Colors.mutedForeground,
   },
   textarea: { marginTop: 12 },
+  errorBanner: {
+    marginTop: 16,
+    borderRadius: Radius.input,
+    backgroundColor: Colors.muted,
+    padding: 12,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+    color: Colors.destructive,
+  },
 });

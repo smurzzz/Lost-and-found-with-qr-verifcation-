@@ -2,7 +2,9 @@
  * ReportForm — v3 port (ReportForm in claimit-app.tsx). Shared by
  * report-lost and report-found; differs by type copy and submit target.
  * §1.2: the form validates on submit and shows inline per-field errors;
- * a valid submit navigates (no write in Phase 1).
+ * a valid submit calls onSubmit(values) — screens decide what to write.
+ * Phase 5: found reports add an "Item name" field (items.title is NOT NULL),
+ * and the submit button reflects async busy/error state.
  */
 
 import { useState } from 'react';
@@ -15,31 +17,49 @@ import { Button3, FormField, Header, TextArea3 } from '@/components/v3/core';
 import { V3Screen } from '@/components/v3/screen';
 
 type Errors = {
+  title?: string;
   category?: string;
   description?: string;
   date?: string;
   location?: string;
 };
 
+export interface ReportFormValues {
+  /** Item name — required for Found reports (items.title is NOT NULL). */
+  title?: string;
+  category: string;
+  description: string;
+  date: string;
+  location: string;
+}
+
 export function ReportForm({
   type,
   onBack,
   onSubmit,
   nav,
+  busy = false,
+  submitError,
 }: {
   type: 'Lost' | 'Found';
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (values: ReportFormValues) => void;
   nav?: React.ReactNode;
+  busy?: boolean;
+  submitError?: string;
 }) {
+  const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [errors, setErrors] = useState<Errors>({});
 
+  const isFound = type === 'Found';
+
   function validate(): boolean {
     const next: Errors = {};
+    if (isFound && !title.trim()) next.title = 'Give the item a name.';
     if (!category.trim()) next.category = 'Please select a category.';
     if (!description.trim()) next.description = 'Please describe the item.';
     if (!date.trim()) next.date = 'Please choose a date.';
@@ -49,7 +69,16 @@ export function ReportForm({
   }
 
   function handleSubmit() {
-    if (validate()) onSubmit();
+    if (busy) return;
+    if (validate()) {
+      onSubmit({
+        ...(isFound ? { title: title.trim() } : {}),
+        category: category.trim(),
+        description: description.trim(),
+        date: date.trim(),
+        location: location.trim(),
+      });
+    }
   }
 
   function clearError(field: keyof Errors) {
@@ -60,6 +89,18 @@ export function ReportForm({
     <V3Screen nav={nav}>
       <Header title={`Report a ${type} Item`} onBack={onBack} />
       <View style={styles.form}>
+        {isFound ? (
+          <FormField
+            label="Item name"
+            placeholder="e.g. Navy backpack"
+            value={title}
+            onChangeText={(text) => {
+              setTitle(text);
+              clearError('title');
+            }}
+            error={errors.title}
+          />
+        ) : null}
         <FormField
           label="Category"
           placeholder="Select a category"
@@ -122,7 +163,16 @@ export function ReportForm({
               : 'Your report will appear right away. Please bring the item to staff so it can be confirmed and tagged.'}
           </Text>
         </View>
-        <Button3 label="Submit Report" onPress={handleSubmit} />
+        {submitError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{submitError}</Text>
+          </View>
+        ) : null}
+        <Button3
+          label={busy ? 'Submitting…' : 'Submit Report'}
+          disabled={busy}
+          onPress={handleSubmit}
+        />
       </View>
     </V3Screen>
   );
@@ -178,5 +228,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: Colors.primary,
+  },
+  errorBanner: {
+    borderRadius: Radius.input,
+    backgroundColor: Colors.muted,
+    padding: 12,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+    color: Colors.destructive,
   },
 });

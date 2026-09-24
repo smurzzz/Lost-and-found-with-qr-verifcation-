@@ -36,6 +36,8 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | SL-03 | Edit/delete an item before it's claimed        | ⏳     |
 | SL-04 | Search/filter found items by category and date | ⏳     |
 
+> Phase 4 status: SL-01 is **fully implemented** (Log Found form → `log-found` Edge Function → server-minted `FND-xxxxx` QR displayed on the QR Tag screen via `react-native-qrcode-svg`, real Found Items list on the dashboard). SL-02/03 are deferred by design (photo + edit/delete land after the release-flow constraint work). SL-04 needs a category/date filter on the staff list. All four stay ⏳ until a live run on device after the Phase 3 dashboard config is done.
+
 ### Student Reporting
 
 | ID    | Case                                              | Status |
@@ -45,7 +47,11 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | SR-03 | Found report shows "Pending drop-off" immediately | ⏳     |
 | SR-04 | Edit/cancel own lost report                       | ⏳     |
 
+> Phase 5 status: SR-01 (→ `lost_reports`) and SR-02 (→ `items`, `pending_dropoff`, `qr_code NULL`) are implemented end to end; SR-03 is verifiable in the DB (the found-success screen shows the drop-off pill, and the row is `pending_dropoff`). SR-04 (edit/cancel) has no UI yet — deferred. All stay ⏳ until a live run (needs the Phase 3 dashboard config + running migrations).
+
 ### Matching
+
+> Phase 6 status: matching is implemented end to end — `find_possible_matches` RPC (migration `20250924000004_phase6_matching.sql`), the `/match` Edge Function (owner/staff-gated, sets `lost_reports.status = possible_match`, writes `matched` audit rows, best-effort Expo push to `users.push_token`), and client token registration. M-01/M-02 stay ⏳ until a live run (needs migration 04 + `supabase functions deploy match` + `eas init` + a real device push token).
 
 | ID   | Case                                                                 | Status |
 | ---- | -------------------------------------------------------------------- | ------ |
@@ -53,6 +59,17 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 | M-02 | No match found → report stays "Searching"                            | ⏳     |
 | M-03 | Student browses feed and taps "This is mine" without a notification  | ⏳     |
 | M-04 | "Not mine" dismisses card without side effects on other users' views | ⏳     |
+
+### Claims
+
+> Phase 7 status: Claim Verification writes a real claim — `insertClaim` (claim `status = 'pending'` + a `claim_requested` audit row), and migration `20250924000005_phase7_claims.sql` adds a server-side trigger that moves the item `available → pending_claim` (never `claimed`; `pending_dropoff` left alone) plus a partial unique index rejecting a second _pending_ claim on the same item. The staff Pending Claims tab lists real `pending` claims with claimant + item (RLS covers staff reads). The _approved_ decision and the release gate arrive with Phase 9. Rows stay ⏳ until a live run.
+
+| ID    | Case                                                 | Status |
+| ----- | ---------------------------------------------------- | ------ |
+| CL-01 | Student submits a claim with distinctive detail      | ⏳     |
+| CL-02 | Staff Pending Claims tab lists the new pending claim | ⏳     |
+| CL-03 | Item shows "Pending claim" after a claim is filed    | ⏳     |
+| CL-04 | A second pending claim on the same item is rejected  | ⏳     |
 
 ### QR Release
 

@@ -6,12 +6,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { MapPin, QrCode, Search } from 'lucide-react-native';
+import { MapPin, PackageCheck, QrCode, Search, Sparkles } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
-import { Button3, ChipButton, StatusPill } from '@/components/v3/core';
+import { Button3, ChipButton, StatusPill, type PillStatus } from '@/components/v3/core';
 import { ItemCardSkeleton } from '@/components/v3/skeleton';
+import { formatFoundDate } from '@/lib/dates';
+import type { ItemRow, LostReportRow } from '@/lib/db';
 import { categories, items, type MockItem } from '@/mocks/data';
+
+/** DB item status → pill variant (claimed items show as the released state). */
+export const itemStatusToPill: Record<ItemRow['status'], PillStatus> = {
+  pending_dropoff: 'dropoff',
+  available: 'unclaimed',
+  pending_claim: 'pending',
+  claimed: 'released',
+};
+
+/** Lost-report status → (pill variant, copy). */
+const lostStatusToPill: Record<LostReportRow['status'], { status: PillStatus; label: string }> = {
+  searching: { status: 'unclaimed', label: 'Searching' },
+  possible_match: { status: 'pending', label: 'Possible match' },
+  claimed: { status: 'released', label: 'Claimed' },
+  closed: { status: 'dropoff', label: 'Closed' },
+};
 
 /* ------------------------------------------------------------------ */
 /* ItemCard                                                            */
@@ -76,6 +94,124 @@ export function ItemCard({
   );
 }
 
+/** DB ItemRow card for the staff dashboard (real data, no photo asset). */
+export function StaffItemCard({ item, onOpen }: { item: ItemRow; onOpen?: () => void }) {
+  return (
+    <View style={[styles.card, Shadows.card]}>
+      <Pressable onPress={onOpen} accessibilityLabel={`View ${item.title}`}>
+        <View style={styles.imageWrap}>
+          <View style={styles.dashPlaceholder}>
+            <View style={styles.dashPlaceholderIcon}>
+              <PackageCheck size={34} color={Colors.card} />
+            </View>
+          </View>
+          <View style={styles.pillOverlay}>
+            <StatusPill status={itemStatusToPill[item.status]} />
+          </View>
+          <View style={styles.sourceBadge}>
+            <Text style={styles.sourceText}>
+              {item.source === 'student_reported' ? 'Reported by student' : 'Logged by staff'}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+      <View style={styles.cardBody}>
+        <View style={styles.cardTop}>
+          <View style={styles.cardTextWrap}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardMeta}>
+              {item.category} · {formatFoundDate(item.found_date)}
+            </Text>
+            <View style={styles.locationRow}>
+              <MapPin size={16} color={Colors.mutedForeground} />
+              <Text style={styles.locationText}>{item.found_location}</Text>
+            </View>
+          </View>
+          {item.status !== 'claimed' ? <QrCode size={20} color={Colors.success} /> : null}
+        </View>
+        {item.qr_code ? (
+          <View style={styles.qrCodePill}>
+            <Text style={styles.qrCodeText}>{item.qr_code}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/** DB ItemRow card for the student feed (real data, Phase 6) — Mine / Not mine. */
+export function StudentItemCard({
+  item,
+  onMine,
+  onDismiss,
+}: {
+  item: ItemRow;
+  onMine: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={[styles.card, Shadows.card]}>
+      <View style={styles.imageWrap}>
+        <View style={styles.dashPlaceholder}>
+          <View style={styles.dashPlaceholderIcon}>
+            <PackageCheck size={34} color={Colors.card} />
+          </View>
+        </View>
+        <View style={styles.pillOverlay}>
+          <StatusPill status={itemStatusToPill[item.status]} />
+        </View>
+      </View>
+      <View style={styles.cardBody}>
+        <View style={styles.cardTop}>
+          <View style={styles.cardTextWrap}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardMeta}>
+              {item.category} · {formatFoundDate(item.found_date)}
+            </Text>
+            <View style={styles.locationRow}>
+              <MapPin size={16} color={Colors.mutedForeground} />
+              <Text style={styles.locationText}>{item.found_location}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.actionRow}>
+          <View style={styles.actionButton}>
+            <Button3 label="Mine" height={44} onPress={onMine} />
+          </View>
+          <View style={styles.actionButton}>
+            <Button3 label="Not mine" variant="secondary" height={44} onPress={onDismiss} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** A signed-in student's lost-report card (student home "My Lost Reports"). */
+export function LostReportCard({ report }: { report: LostReportRow }) {
+  const pill = lostStatusToPill[report.status];
+  return (
+    <View style={[styles.lostReportCard, Shadows.card]}>
+      <View style={styles.lostReportIcon}>
+        <Sparkles size={20} color={Colors.pendingForeground} />
+      </View>
+      <View style={styles.lostReportTextWrap}>
+        <Text style={styles.lostReportName} numberOfLines={1}>
+          {report.category}
+        </Text>
+        <Text style={styles.lostReportMeta} numberOfLines={1}>
+          Reported {formatFoundDate(report.created_at, false)} · {report.lost_location}
+        </Text>
+      </View>
+      <StatusPill status={pill.status} label={pill.label} />
+    </View>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* SearchBox                                                           */
 /* ------------------------------------------------------------------ */
@@ -111,10 +247,15 @@ export function Feed({
   staff = false,
   searchOnly = false,
   onMine,
+  dbItems,
+  dbLoading = false,
 }: {
   staff?: boolean;
   searchOnly?: boolean;
-  onMine: () => void;
+  onMine: (itemId: string) => void;
+  /** Real ItemRows (Phase 6). When provided, the mock feed is skipped. */
+  dbItems?: ItemRow[];
+  dbLoading?: boolean;
 }) {
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
@@ -126,7 +267,9 @@ export function Feed({
     return () => clearTimeout(id);
   }, []);
 
-  const visible = useMemo(
+  const isDb = dbItems !== undefined;
+
+  const mockVisible = useMemo(
     () =>
       items.filter(
         (item) =>
@@ -136,6 +279,48 @@ export function Feed({
       ),
     [category, dismissed, query],
   );
+
+  // Real feed: search + category on DB rows; claimed items are hidden (one item,
+  // one owner — the release flow owns the claimed transition).
+  const dbVisible = useMemo(
+    () =>
+      (dbItems ?? []).filter(
+        (item) =>
+          !dismissed.includes(item.id) &&
+          item.status !== 'claimed' &&
+          (category === 'All' || item.category === category) &&
+          item.title.toLowerCase().includes(query.toLowerCase()),
+      ),
+    [category, dbItems, dismissed, query],
+  );
+
+  const visibleCount = isDb ? dbVisible.length : mockVisible.length;
+  const resultsLoading = isDb ? dbLoading : loading;
+
+  function renderResults() {
+    if (resultsLoading) {
+      return [0, 1, 2].map((index) => <ItemCardSkeleton key={index} />);
+    }
+    if (isDb) {
+      return dbVisible.map((item) => (
+        <StudentItemCard
+          key={item.id}
+          item={item}
+          onMine={() => onMine(item.id)}
+          onDismiss={() => setDismissed((current) => [...current, item.id])}
+        />
+      ));
+    }
+    return mockVisible.map((item) => (
+      <ItemCard
+        key={item.id}
+        item={item}
+        staff={staff}
+        onMine={() => onMine(item.id)}
+        onDismiss={() => setDismissed((current) => [...current, item.id])}
+      />
+    ));
+  }
 
   return (
     <View>
@@ -159,7 +344,7 @@ export function Feed({
         </ScrollView>
       </View>
       {searchOnly ? (
-        <Text style={styles.resultCount}>{visible.length} items found</Text>
+        <Text style={styles.resultCount}>{visibleCount} items found</Text>
       ) : (
         <View style={styles.feedHeading}>
           <Text style={styles.feedHeadingTitle}>Found Items</Text>
@@ -167,18 +352,8 @@ export function Feed({
         </View>
       )}
       <View style={styles.feedList}>
-        {loading
-          ? [0, 1, 2].map((index) => <ItemCardSkeleton key={index} />)
-          : visible.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                staff={staff}
-                onMine={onMine}
-                onDismiss={() => setDismissed((current) => [...current, item.id])}
-              />
-            ))}
-        {visible.length === 0 ? (
+        {renderResults()}
+        {visibleCount === 0 && !resultsLoading ? (
           <View style={styles.emptyState}>
             <Search size={36} color={Colors.mutedForeground} />
             <Text style={styles.emptyTitle}>No items found</Text>
@@ -203,6 +378,63 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.muted,
   },
   image: { width: '100%', height: '100%' },
+  dashPlaceholder: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dashPlaceholderIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrCodePill: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primarySoft,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  qrCodeText: {
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primary,
+  },
+  lostReportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 16,
+  },
+  lostReportIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.pendingSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lostReportTextWrap: { flex: 1, minWidth: 0 },
+  lostReportName: {
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
+  },
+  lostReportMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.mutedForeground,
+  },
   pillOverlay: { position: 'absolute', left: 12, top: 12 },
   sourceBadge: {
     position: 'absolute',

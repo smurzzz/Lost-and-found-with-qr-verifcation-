@@ -1,54 +1,55 @@
 /**
  * QR Tag (staff) — v3 port (QrTag): brand mark, big QR tile, item line,
- * mono id pill, "Staff verified" footer, Print/Done buttons.
+ * mono-ish id pill, "Staff verified" footer, Print/Done buttons.
+ *
+ * Phase 4: when a real item id is passed (after Log Found Item), the screen
+ * renders that item with its server-minted qr_code as a genuinely scannable
+ * QR. Without a param (e.g. the Phase 1 demo/confirm-receipt click-through) it
+ * falls back to a generated placeholder tag.
  */
 
-import { useState } from 'react';
-import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 
-import { PackageCheck, ShieldCheck } from 'lucide-react-native';
-import Svg, { Rect } from 'react-native-svg';
+import { ShieldCheck } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { BrandMark, Button3, Header } from '@/components/v3/core';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
+import { formatFoundDate } from '@/lib/dates';
+import { useItem } from '@/lib/hooks/use-items';
 import { generateTagId } from '@/lib/qr-tag';
+import { useSession } from '@/lib/session';
 
-/** Decorative deterministic QR pattern (real QR lands in a later phase). */
-function QrPattern({ seed, size = 160 }: { seed: string; size?: number }) {
-  const cells = 13;
-  const cell = size / cells;
-  const rects = [] as React.ReactElement[];
-  let hash = 0;
-  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  for (let y = 0; y < cells; y++) {
-    for (let x = 0; x < cells; x++) {
-      hash = (hash * 1103515245 + 12345) >>> 0;
-      if (((hash >>> 16) & 1) === 1) {
-        rects.push(<Rect key={`${x}-${y}`} x={x * cell} y={y * cell} width={cell} height={cell} />);
-      }
-    }
-  }
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill={Colors.primary}>
-      {rects}
-    </Svg>
-  );
-}
+const todayStamp = new Date().toLocaleDateString('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
 
 export default function QrTagScreen() {
-  const [tagId] = useState(() => generateTagId());
-  void PackageCheck;
+  const { isDemo } = useSession();
+  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
+  const { data: item, isLoading } = useItem(isDemo ? null : itemId);
+
+  const real = !isDemo && Boolean(itemId);
+  const tagId = real ? (item?.qr_code ?? '') : generateTagId();
+  const name = real ? (item?.title ?? '') : 'Green water bottle';
+  const meta = real
+    ? item
+      ? `${item.category} · ${item.found_location} · ${formatFoundDate(item.found_date, false)}`
+      : ''
+    : `Other · West Gym · ${todayStamp}`;
 
   return (
     <V3Screen
       nav={
         <BottomNav3
           role="staff"
-          active="staff-home"
+          active="scan"
           onSelect={(tab) => router.push(tabRoute('staff', tab))}
         />
       }
@@ -61,11 +62,17 @@ export default function QrTagScreen() {
       <View style={styles.body}>
         <View style={[styles.tagCard, Shadows.float]}>
           <BrandMark compact />
-          <View style={styles.qrFrame}>
-            <QrPattern seed={tagId} />
-          </View>
-          <Text style={styles.itemName}>Green water bottle</Text>
-          <Text style={styles.itemMeta}>Other · West Gym · Sep 24, 2026</Text>
+          {isLoading || !tagId ? (
+            <View style={[styles.qrFrame, styles.qrFrameLoading]}>
+              <Text style={styles.loadingText}>Loading tag…</Text>
+            </View>
+          ) : (
+            <View style={styles.qrFrame}>
+              <QRCode value={tagId} size={168} />
+            </View>
+          )}
+          <Text style={styles.itemName}>{name}</Text>
+          <Text style={styles.itemMeta}>{meta}</Text>
           <View style={styles.idPill}>
             <Text style={styles.idText}>{tagId}</Text>
           </View>
@@ -101,11 +108,20 @@ const styles = StyleSheet.create({
     width: 208,
     height: 208,
     borderRadius: 16,
+    backgroundColor: '#ffffff',
     borderWidth: 8,
     borderColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  qrFrameLoading: {
+    backgroundColor: Colors.muted,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+    color: Colors.mutedForeground,
   },
   itemName: {
     fontSize: 20,

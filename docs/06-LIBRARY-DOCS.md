@@ -26,11 +26,12 @@ Reference for every external dependency, why it's used, and where.
 
 ## Camera / QR
 
-| Library                                                                                         | Purpose                                                                                   | Notes                                                                                                |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `expo-camera`                                                                                   | Camera access for scanning                                                                | Used in Scan-to-Release screen only                                                                  |
-| `expo-barcode-scanner` (or `expo-camera`'s built-in barcode scanning, depending on SDK version) | QR decode                                                                                 | Confirm which API your Expo SDK version recommends — this has changed across SDK releases            |
-| QR generation (server-side)                                                                     | Encodes item ID + a signed token, not just the raw item ID, to prevent trivial QR forgery | Consider a library like `qrcode` (Node) inside the Edge Function, or a Supabase-side generation step |
+| Library                     | Purpose                                                                                    | Notes                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `expo-camera`               | Camera access for scanning                                                                 | Used in Scan-to-Release screen only                                                                                          |
+| `react-native-qrcode-svg`   | Client-side QR rendering                                                                   | Encodes the server-minted `FND-xxxxx` tag into a scannable QR on the QR Tag screen (Phase 4)                                 |
+| (QR decode, Phase 9)        | Read QRs via `expo-camera`'s built-in barcode scanning (`CameraView` + `onBarcodeScanned`) | SDK 57 bundles a barcode detector; no separate `expo-barcode-scanner` install needed                                         |
+| QR generation (server-side) | Mints the unique `FND-xxxxx` tag in the `log-found` Edge Function; NOT done client-side    | Partial unique index on `items.qr_code` prevents duplicates; scanning (Phase 9) matches the scanned string to the stored tag |
 
 ## Notifications
 

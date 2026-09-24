@@ -29,6 +29,7 @@ export interface UserRow {
   name: string;
   email: string;
   class_or_dept: string | null;
+  push_token: string | null;
   created_at: string;
 }
 
@@ -67,6 +68,18 @@ export interface ClaimRow {
   verification_answer: string;
   status: ClaimStatus;
   created_at: string;
+}
+
+/** Pending claim joined with the claimant name + item for the staff tab. */
+export interface PendingClaimRow {
+  id: string;
+  item_id: string;
+  claimant_id: string;
+  verification_answer: string;
+  status: ClaimStatus;
+  created_at: string;
+  claimant: { name: string } | null;
+  item: { id: string; title: string; category: string; status: ItemStatus } | null;
 }
 
 export interface AuditLogRow {
@@ -237,6 +250,25 @@ export async function setClaimStatus(input: {
   if (error) throw error;
 }
 
+/**
+ * Pending claims with claimant name + item details, newest first (staff tab).
+ * RLS lets staff read all claims, all users (claimant names), and all items,
+ * so a plain client query is sufficient — no Edge Function needed.
+ */
+export async function fetchPendingClaims(): Promise<PendingClaimRow[]> {
+  const { data, error } = await client()
+    .from('claims')
+    .select(
+      'id, item_id, claimant_id, verification_answer, status, created_at, ' +
+        'claimant:users!claims_claimant_id_fkey(name), ' +
+        'item:items!claims_item_id_fkey(id, title, category, status)',
+    )
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as PendingClaimRow[];
+}
+
 /** Per-item audit trail, oldest first (the Audit screen timeline). */
 export async function fetchItemAudit(itemId: string): Promise<AuditLogRow[]> {
   const { data, error } = await client()
@@ -253,4 +285,13 @@ export async function fetchUser(userId: string): Promise<UserRow | null> {
   const { data, error } = await client().from('users').select('*').eq('id', userId).maybeSingle();
   if (error) throw error;
   return (data as UserRow) ?? null;
+}
+
+/**
+ * Store the signed-in student's Expo push token (Phase 6). RLS restricts this
+ * to the user's own row and the push_token column only (migration 04).
+ */
+export async function updatePushToken(userId: string, pushToken: string): Promise<void> {
+  const { error } = await client().from('users').update({ push_token: pushToken }).eq('id', userId);
+  if (error) throw error;
 }

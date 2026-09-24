@@ -65,12 +65,12 @@ const pillCopy: Record<PillStatus, string> = {
   released: 'Released',
 };
 
-export function StatusPill({ status }: { status: PillStatus }) {
+export function StatusPill({ status, label }: { status: PillStatus; label?: string }) {
   const s = pillStyles[status];
   return (
     <View style={[styles.pill, { backgroundColor: s.bg, borderColor: s.border }]}>
       <View style={[styles.pillDot, { backgroundColor: s.dot }]} />
-      <Text style={[styles.pillText, { color: s.text }]}>{pillCopy[status]}</Text>
+      <Text style={[styles.pillText, { color: s.text }]}>{label ?? pillCopy[status]}</Text>
     </View>
   );
 }

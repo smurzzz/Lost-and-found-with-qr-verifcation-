@@ -10,17 +10,67 @@ import { Sparkles } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, StatusPill } from '@/components/v3/core';
-import { Feed } from '@/components/v3/feed';
+import { Feed, LostReportCard } from '@/components/v3/feed';
 import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { initialsOf, useSession } from '@/lib/session';
 import { tabRoute } from '@/lib/v3-nav';
+import { useMyLostReports } from '@/lib/hooks/use-reports';
+import { useFoundItems } from '@/lib/hooks/use-items';
+import { usePushTokenSync } from '@/lib/hooks/use-push-token';
 
 export default function StudentHomeScreen() {
-  const { dbUser, clerkUser } = useSession();
+  const { dbUser, clerkUser, isDemo } = useSession();
   const name = dbUser?.name ?? clerkUser?.name ?? 'Alex Morgan';
   const firstName = name.trim().split(/\s+/)[0] || name;
   const initials = initialsOf(name);
+  const lostReports = useMyLostReports(dbUser?.id, { enabled: !isDemo });
+  const reports = lostReports.data ?? [];
+  const foundItems = useFoundItems({ enabled: !isDemo });
+  usePushTokenSync();
+
+  const reportSection = (
+    <View style={styles.reportsSection}>
+      <View style={styles.reportsHeading}>
+        <Text style={styles.reportsTitle}>My Lost Reports</Text>
+        <Button3
+          label="View matches"
+          variant="link"
+          height={32}
+          style={styles.viewMatches}
+          onPress={() => router.push('/(student)/matches')}
+        />
+      </View>
+      {isDemo ? (
+        <View style={[styles.reportCard, Shadows.card]}>
+          <View style={styles.reportIcon}>
+            <Sparkles size={20} color={Colors.pendingForeground} />
+          </View>
+          <View style={styles.reportTextWrap}>
+            <Text style={styles.reportName}>White headphones</Text>
+            <Text style={styles.reportMeta}>Reported Sep 21 · 2 possible matches</Text>
+          </View>
+          <StatusPill status="pending" />
+        </View>
+      ) : lostReports.isLoading ? (
+        <View style={styles.reportEmpty}>
+          <Text style={styles.reportEmptyText}>Loading your reports…</Text>
+        </View>
+      ) : lostReports.isError ? (
+        <View style={styles.reportEmpty}>
+          <Text style={styles.reportEmptyText}>Couldn&apos;t load your reports.</Text>
+        </View>
+      ) : reports.length === 0 ? (
+        <View style={styles.reportEmpty}>
+          <Text style={styles.reportEmptyText}>
+            No lost reports yet — tap Create a report to start.
+          </Text>
+        </View>
+      ) : (
+        reports.slice(0, 3).map((report) => <LostReportCard key={report.id} report={report} />)
+      )}
+    </View>
+  );
 
   return (
     <V3Screen
@@ -42,30 +92,16 @@ export default function StudentHomeScreen() {
         </View>
       </View>
 
-      <Feed staff={false} onMine={() => router.push('/(student)/claim-verify')} />
+      <Feed
+        staff={false}
+        dbItems={isDemo ? undefined : foundItems.data}
+        dbLoading={!isDemo && foundItems.isLoading}
+        onMine={(itemId) =>
+          router.push({ pathname: '/(student)/claim-verify', params: { itemId } })
+        }
+      />
 
-      <View style={styles.reportsSection}>
-        <View style={styles.reportsHeading}>
-          <Text style={styles.reportsTitle}>My Lost Reports</Text>
-          <Button3
-            label="View matches"
-            variant="link"
-            height={32}
-            style={styles.viewMatches}
-            onPress={() => router.push('/(student)/matches')}
-          />
-        </View>
-        <View style={[styles.reportCard, Shadows.card]}>
-          <View style={styles.reportIcon}>
-            <Sparkles size={20} color={Colors.pendingForeground} />
-          </View>
-          <View style={styles.reportTextWrap}>
-            <Text style={styles.reportName}>White headphones</Text>
-            <Text style={styles.reportMeta}>Reported Sep 21 · 2 possible matches</Text>
-          </View>
-          <StatusPill status="pending" />
-        </View>
-      </View>
+      {reportSection}
     </V3Screen>
   );
 }
@@ -143,6 +179,18 @@ const styles = StyleSheet.create({
   reportMeta: {
     marginTop: 2,
     fontSize: 12,
+    color: Colors.mutedForeground,
+  },
+  reportEmpty: {
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 20,
+    alignItems: 'center',
+  },
+  reportEmptyText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
     color: Colors.mutedForeground,
   },
 });
