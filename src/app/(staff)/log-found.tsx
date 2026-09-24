@@ -2,7 +2,7 @@
  * Log Found Item (staff) — v3 port (StaffForm, non-receipt variant).
  * Phase 4: posts to the log-found Edge Function, which writes the item and
  * mints the QR tag server-side, then lands on the QR Tag screen with the id.
- * In demo mode (no Clerk keys) it keeps the Phase 1 click-through behavior.
+ * In demo mode (no EXPO_PUBLIC_* keys) it keeps the Phase 1 click-through behavior.
  */
 
 import { useState } from 'react';

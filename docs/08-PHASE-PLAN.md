@@ -32,16 +32,17 @@ Install the full dependency set from `06-LIBRARY-DOCS.md`:
 
 ```
 npx expo install expo-router expo-camera expo-barcode-scanner expo-notifications expo-image-picker
-npm install @clerk/clerk-expo @supabase/supabase-js @tanstack/react-query react-hook-form zod
+npm install @clerk/expo @supabase/supabase-js @tanstack/react-query react-hook-form zod
 npm install -D eslint prettier husky lint-staged typescript
 ```
 
-- [ ] Confirm versions pinned per the policy in `06-LIBRARY-DOCS.md` (exact versions for `expo`, `@clerk/clerk-expo`, `@supabase/supabase-js`)
+- [ ] Confirm versions pinned per the policy in `06-LIBRARY-DOCS.md` (exact versions for `expo`, `@clerk/expo`, `@supabase/supabase-js`)
 
 ### 0.4 External services
 
 - [ ] Create Supabase project; note project URL and anon key
-- [ ] Create Clerk project; configure SSO provider; set student email-domain allowlist; note publishable key
+- [ ] Create Clerk project; enable Google as a social connection (Clerk manages the OAuth app — no Google Cloud project of our own); note publishable key
+- [ ] Configure the Clerk → Supabase bridge: Supabase JWT Settings custom issuer pointing at Clerk's JWKS; Clerk JWT template named `supabase` with `sub` + `role: 'authenticated'`
 - [ ] Create EAS project (`eas init`), link to Expo account
 
 ### 0.5 Environment variables
@@ -69,9 +70,9 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
 - [ ] `npx expo start` runs without error
 - [ ] App loads on emulator/device, shows default screen
 - [ ] A trivial Supabase query succeeds (e.g., fetch an empty `items` table) — confirms env vars wired correctly
-- [ ] A Clerk sign-in screen renders — confirms auth wiring
+- [ ] A Clerk Google sign-in completes and lands on a role home — confirms auth + bridge wiring
 
-**Exit criterion:** empty app runs, connects to Supabase, connects to Clerk, and the repo is pushed with working CI-lint on a PR.
+**Exit criterion:** empty app runs, connects to Supabase, connects to Clerk (Google SSO), and the repo is pushed with working CI-lint on a PR.
 
 ---
 
@@ -129,8 +130,8 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
 
 ## Phase 3 — Auth & Roles (wire the real thing)
 
-- [ ] Replace the mock "Continue with SSO" with real Clerk SSO
-- [ ] Student self-signup flow (domain-restricted), create `users` row on first login
+- [ ] Replace the mock "Continue with Google" with real Clerk Google SSO (`useSSO` strategy `oauth_google` → `setActive`)
+- [ ] Student self-signup flow (open Google SSO; RLS forces `role='student'`), create `users` row on first login; staff seeded invite-only
 - [ ] Staff invite-only provisioning
 - [ ] Role-based route guarding in `expo-router` (replace the Phase 1 static navigation with real role checks)
 - [ ] Profile screen reads real session data

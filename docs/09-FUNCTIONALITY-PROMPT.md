@@ -6,13 +6,13 @@ This is a build prompt for implementing **functionality**, not visuals — pair 
 
 ## 1. Login / Onboarding
 
-**Purpose:** authenticate via SSO, route to the correct role's home screen.
+**Purpose:** authenticate via Google SSO (Clerk), route to the correct role's home screen.
 
-- On tap "Continue with SSO": trigger Clerk's SSO flow.
+- On tap "Continue with Google": start Clerk's Google OAuth flow (`useSSO` with strategy `oauth_google`), then activate the created session.
 - On success: check `users.role` for this account.
-  - If no `users` row exists yet (first login) and email matches the student domain allowlist → create a `student` row, route to Student Home.
-  - If no `users` row exists and email does not match the allowlist → block with a message explaining staff accounts must be invited by an admin.
+  - If no `users` row exists yet (first login) → create a `student` row (any Google account; RLS forces `role='student'`), route to Student Home.
   - If a `users` row exists → route based on `role` (`student` → Student Home, `staff`/`admin` → Staff Dashboard).
+  - A future staff member with no provisioned row signs in as a student until an admin upserts their `users` row; they land on Staff Dashboard after their next sign-in.
 - On failure/cancel: stay on screen, show a non-blocking error.
 - Persist session; app should skip this screen on relaunch if a valid session exists.
 
@@ -161,7 +161,7 @@ This is a build prompt for implementing **functionality**, not visuals — pair 
 - Display current user's name, avatar (if any), and role badge.
 - "Notification Settings": link to device notification settings or an in-app preferences screen if one exists.
 - "Help & Support": static content or a mailto/contact link — decide and document which.
-- "Log Out": clear Clerk session, clear any cached React Query data, navigate to Login.
+- "Log Out": clear the Clerk session, clear any cached React Query data, navigate to Login.
 
 ---
 

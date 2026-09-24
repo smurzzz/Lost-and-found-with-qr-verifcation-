@@ -8,7 +8,7 @@
 //   POST /log-found
 //   body: { title: string, category: string, description?: string,
 //           found_location: string, found_date?: string }
-//   auth: Bearer <Clerk JWT> — must resolve to a users row with role 'staff'
+//   auth: Bearer <session access token> — must resolve to a users row with role 'staff'
 //         (or 'admin'); the user's id becomes the item's confirmed_by and the
 //         audit actor.
 //

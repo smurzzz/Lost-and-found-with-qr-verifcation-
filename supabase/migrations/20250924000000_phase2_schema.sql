@@ -21,7 +21,7 @@ create type audit_event as enum (
 -- ---------------------------------------------------------------------------
 
 create table users (
-  id            uuid primary key,            -- Clerk user id
+  id            uuid primary key,            -- Clerk user id (migrated to text in phase 3)
   role          user_role not null default 'student',
   name          text not null,
   email         text not null unique,        -- school domain enforced at signup

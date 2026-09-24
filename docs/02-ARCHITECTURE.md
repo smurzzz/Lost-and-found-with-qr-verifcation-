@@ -8,13 +8,14 @@
 │   Native App          │◄──────►│  - Postgres DB       │
 │   (Android)           │        │  - Storage (photos)  │
 │                       │        │  - Edge Functions    │
-└──────────┬────────────┘        └───────────┬──────────┘
-           │                                  │
-           │ Auth (SSO)                       │ Push
-           ▼                                  ▼
-     ┌───────────┐                    ┌───────────────┐
-     │  Clerk    │                    │ Expo Push API │
-     └───────────┘                    └───────────────┘
+│                       │        │  - RLS (JWT-gated)   │
+└──────────┬────────────┘        └──────────────────────┘
+           │
+           │ Auth (Google SSO via Clerk; `supabase` JWT template → RLS)
+           ▼
+     ┌───────────────┐
+     │ Clerk (SSO)   │   Google OAuth handled by Clerk — no Google Cloud app of our own
+     └───────────────┘
 ```
 
 ## 2. Layers
@@ -28,13 +29,13 @@
 
 **users**
 
-| column        | type                        | notes                            |
-| ------------- | --------------------------- | -------------------------------- |
-| id            | uuid                        | Clerk user id                    |
-| role          | enum(student, staff, admin) |                                  |
-| name          | text                        |                                  |
-| email         | text                        | school domain enforced at signup |
-| class_or_dept | text                        | optional                         |
+| column        | type                        | notes                                                                                                     |
+| ------------- | --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| id            | text                        | Clerk user id (like `user_2xY…`); synced to `users` on first login; RLS resolves `auth.uid()::text` to it |
+| role          | enum(student, staff, admin) |                                                                                                           |
+| name          | text                        |                                                                                                           |
+| email         | text                        | any Google account accepted (open signup)                                                                 |
+| class_or_dept | text                        | optional                                                                                                  |
 
 **items**
 
@@ -125,7 +126,7 @@ POST /api/log-found
 body: { title, category, description, found_location, found_date? }
 ```
 
-Runs as the service role. Verifies an authenticated **staff** session (same Clerk-JWT check as `/release`), inserts the item with `source = 'staff_logged'`, `status = 'available'`, `confirmed_by`/`confirmed_at` set, mints the signed QR token over the resulting item id and stores it in `qr_code` (shared `_shared/claimit.ts` mint), then writes a `found` audit_log row. It never touches `claimed`; the non-negotiable release path above still owns that transition.
+Runs as the service role. Verifies an authenticated **staff** session (same Supabase-token check as `/release`), inserts the item with `source = 'staff_logged'`, `status = 'available'`, `confirmed_by`/`confirmed_at` set, mints the signed QR token over the resulting item id and stores it in `qr_code` (shared `_shared/claimit.ts` mint), then writes a `found` audit_log row. It never touches `claimed`; the non-negotiable release path above still owns that transition.
 
 ### Supporting endpoint — confirm receipt (staff, student-reported items)
 
@@ -136,7 +137,7 @@ body: { itemId }
 
 Also runs as the service role with the same staff auth contract. It loads the item and confirms exactly once: the item must be `source = 'student_reported'` **and** `status = 'pending_dropoff'` (anything else → `409`), then mints the signed QR token over the item id (same shared generation path as `/log-found`), transitions the item `pending_dropoff → available` with `confirmed_by`/`confirmed_at`, and writes a `confirmed` audit_log row. This is only legal inbound order to give a student-reported item a QR (CP-03/CP-04); `claimed` still belongs exclusively to `/release`.
 
-**Shared Edge Function module:** `/log-found`, `/confirm-receipt`, and `/release` all import `supabase/functions/_shared/claimit.ts` (CORS, JSON helpers, `signedQrToken`/`isSignedQrValid` HMAC mint+verify, `requireStaffUser` Clerk-JWT staff check) so the staff paths share one implementation (09 §9 — "don't duplicate this logic, share it"). `_shared` is bundled into each function at deploy time.
+**Shared Edge Function module:** `/log-found`, `/confirm-receipt`, and `/release` all import `supabase/functions/_shared/claimit.ts` (CORS, JSON helpers, `signedQrToken`/`isSignedQrValid` HMAC mint+verify, `requireStaffUser` staff check that decodes the caller's Supabase access-token `sub` against the users table) so the staff paths share one implementation (09 §9 — "don't duplicate this logic, share it"). `_shared` is bundled into each function at deploy time.
 
 ## 5. Screen-to-module map
 

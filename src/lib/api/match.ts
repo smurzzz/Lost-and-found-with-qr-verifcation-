@@ -5,7 +5,7 @@
  * go through this layer.
  */
 
-import { getClerkSupabaseToken } from '@/lib/authBridge';
+import { getSupabaseAccessToken } from '@/lib/token';
 import { ApiError } from '@/lib/api/items';
 import { getEnv } from '@/lib/env';
 
@@ -25,7 +25,7 @@ interface MatchPayload {
 
 /** POST /match: scan found items for a probable match against a lost report. */
 export async function runMatching(lostReportId: string): Promise<RunMatchingResult> {
-  const token = await getClerkSupabaseToken();
+  const token = await getSupabaseAccessToken();
   if (!token) {
     throw new ApiError(401, 'unauthenticated', 'Your session has ended. Please sign in again.');
   }

@@ -20,17 +20,22 @@ export function RoleGuard({
   allow: ('student' | 'staff')[];
   children: ReactNode;
 }) {
-  const { isLoaded, isSignedIn, role } = useSession();
+  const { isLoaded, isSignedIn, user, syncError, role } = useSession();
 
   if (!isLoaded) {
     return null; // Splash stays up until the session settles.
   }
-  if (!isSignedIn) {
+  if (!isSignedIn || !user) {
+    return <Redirect href="/login" />;
+  }
+  if (syncError) {
+    // Sync failure (staff not provisioned, JWT not accepted) — show on login.
     return <Redirect href="/login" />;
   }
   if (!role) {
-    // Signed in but no users row: staff-not-provisioned or sync failure.
-    return <Redirect href="/login" />;
+    // Signed in but the users-row sync is still running — hold instead of
+    // bouncing to /login (an active session + a fresh sign-in attempt fails).
+    return null;
   }
   if (!allow.includes(role as 'student' | 'staff')) {
     return <Redirect href={role === 'staff' ? '/(staff)/dashboard' : '/(student)/home'} />;

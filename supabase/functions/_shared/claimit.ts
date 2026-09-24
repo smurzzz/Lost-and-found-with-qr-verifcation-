@@ -87,7 +87,7 @@ export async function isSignedQrValid(token: string): Promise<boolean> {
 
 // --- Staff auth -------------------------------------------------------------
 
-interface ClerkClaims {
+interface TokenClaims {
   sub?: string;
 }
 
@@ -95,10 +95,12 @@ export type StaffAuth = { ok: true; staffId: string } | { ok: false; response: R
 
 /**
  * Verify the caller is an authenticated staff/admin user (same contract as
- * /release). Decodes the Bearer Clerk JWT subject and resolves it against the
- * users table. NOTE: signature verification is not performed here (see the
- * "production hardening" blocker in 07-PROGRESS-TRACKER.md) — acceptable for
- * the current self-hosted demo deployment.
+ * /release). Decodes the Bearer JWT subject and resolves it against the users
+ * table. The token is the app session's access token (applied from Clerk's
+ * `supabase` JWT template — `sub` = the Clerk user id = users.id), so this
+ * resolves exactly as designed. NOTE: signature verification is not performed
+ * here (see the "production hardening" blocker in 07-PROGRESS-TRACKER.md) —
+ * acceptable for the current self-hosted demo deployment.
  */
 export async function requireStaffUser(req: Request, admin: AdminClient): Promise<StaffAuth> {
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -111,7 +113,7 @@ export async function requireStaffUser(req: Request, admin: AdminClient): Promis
     const payloadPart = token.split('.')[1];
     const claims = JSON.parse(
       atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')),
-    ) as ClerkClaims;
+    ) as TokenClaims;
     staffId = claims.sub ?? null;
   } catch {
     return { ok: false, response: fail(401, 'unauthenticated', 'Malformed bearer token.') };

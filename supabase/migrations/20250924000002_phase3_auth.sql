@@ -1,12 +1,12 @@
 -- ============================================================================
--- ClaimIt — Phase 3 auth support (real Clerk identity)
+-- ClaimIt — Phase 3 auth support (Clerk identity)
 -- Applies with: supabase db push  (or the Supabase SQL editor)
 --
 -- Phase 2 seeded the users table with fixed UUIDs and typed users.id as uuid.
 -- Real Clerk user ids are NOT uuids (they look like 'user_2xYzAbC...'), and
--- RLS resolves the caller via auth.uid() (the Clerk JWT 'sub' claim). For the
--- synced users row to match auth.uid(), users.id and the columns that
--- reference it must be text.
+-- RLS resolves the caller via auth.uid() (the Clerk JWT 'sub' claim comes
+-- through the `supabase` template). For the synced users row to match
+-- auth.uid(), users.id and the columns that reference it must be text.
 --
 -- Also adds the missing self-signup policy: a new student creates their own
 -- users row (role forced to 'student'). Staff stay invite-only — their row

@@ -58,4 +58,4 @@ Use this script for a live walkthrough (defense, class demo, or stakeholder revi
 - **"What if a student lies about finding something they didn't?"** — It stays "Pending drop-off" indefinitely; it's never claimable and never shows as staff-verified until physically handed in.
 - **"What if two students both tap 'This is mine'?"** — Both create separate pending claims; staff reviews and approves only one during the scan/release step.
 - **"Why not let staff mark items claimed manually for convenience?"** — That would defeat the entire audit-trail guarantee the project is built around; it's a deliberate hard constraint, not an oversight.
-- **"Could this scale to a real deployment?"** — Yes; the current schema and role model (Clerk domain-restricted self-signup for students, invite-only for staff) already support multi-building/multi-department use without redesign.
+- **"Could this scale to a real deployment?"** — Yes; the current schema and role model (Clerk Google-SSO student self-signup, invite-only staff seeded in `users`) already support multi-building/multi-department use without redesign.

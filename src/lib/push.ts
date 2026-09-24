@@ -6,17 +6,42 @@
  * Everything here is best-effort and non-fatal: without an EAS projectId the
  * Expo Go client cannot mint a token, so we simply no-op and let the in-app
  * states carry the experience.
+ *
+ * NOTE (SDK 53+): Android remote-push support was removed from Expo Go, and
+ * the expo-notifications module now THROWS at evaluation time there. We must
+ * therefore never import it statically — it is loaded lazily only when running
+ * in a development/production build (executionEnvironment !== StoreClient).
+ * See docs/06-LIBRARY-DOCS.md.
  */
 
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 
 import { EXPO_PUSH_TOKEN_KEY } from '@/constants/keys';
 import { updatePushToken } from '@/lib/db';
 
 let cached: string | null = null;
+
+type PushNotificationsModule = typeof import('expo-notifications');
+
+let notificationsModule: PushNotificationsModule | null | undefined;
+
+/** Load expo-notifications only outside Expo Go (it throws on load there). */
+async function loadNotifications(): Promise<PushNotificationsModule | null> {
+  if (notificationsModule !== undefined) return notificationsModule;
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    notificationsModule = null;
+    return null;
+  }
+  try {
+    notificationsModule = await import('expo-notifications');
+  } catch (error) {
+    console.warn('expo-notifications unavailable in this runtime', error);
+    notificationsModule = null;
+  }
+  return notificationsModule;
+}
 
 /** Resolve the current device's Expo push token (cached; null when unavailable). */
 export async function getExpoPushToken(): Promise<string | null> {
@@ -27,6 +52,8 @@ export async function getExpoPushToken(): Promise<string | null> {
     return stored;
   }
   if (!Device.isDevice) return null; // Simulators cannot receive pushes.
+  const Notifications = await loadNotifications();
+  if (!Notifications) return null; // Expo Go (SDK 53+) or no native module.
   const current = await Notifications.getPermissionsAsync();
   const requested = current.granted ? current : await Notifications.requestPermissionsAsync();
   if (!requested.granted) return null;

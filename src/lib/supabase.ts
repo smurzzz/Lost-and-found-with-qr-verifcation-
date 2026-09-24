@@ -1,16 +1,14 @@
+/**
+ * ClaimIt's single Supabase client. Per 06-LIBRARY-DOCS.md: initialized once
+ * here, never per-component. Supabase RLS is enforced by tokens issued via
+ * Clerk's `supabase` JWT template (see authBridge). The client is created with
+ * placeholder keys until real values exist in .env (Phase 0).
+ */
+
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { getEnv } from '@/lib/env';
 
-/**
- * ClaimIt's single Supabase client. Per 06-LIBRARY-DOCS.md: initialized once
- * here, never per-component. Auth uses Clerk session tokens (wired in Phase 3),
- * so Supabase Auth is disabled — Row-Level Security still applies to the anon
- * role once we pass Clerk JWTs in the Authorization header.
- *
- * With placeholder keys (Phase 0, pre-0.4) we create a placeholder-mode client:
- * all calls are no-ops until real values are filled into .env.
- */
 function createSupabaseClient(): {
   client: SupabaseClient | null;
   isPlaceholder: boolean;
@@ -22,7 +20,9 @@ function createSupabaseClient(): {
   return {
     client: createClient(env.supabaseUrl, env.supabaseAnonKey, {
       auth: {
-        // Supabase Auth is not used; Clerk owns identity (02-ARCHITECTURE.md §1).
+        // Session lifecycle is owned by Clerk (authBridge): we apply the Clerk
+        // `supabase` template JWT on demand, so Supabase must not try to
+        // auto-refresh its own session or persist one.
         autoRefreshToken: false,
         persistSession: false,
         detectSessionInUrl: false,
@@ -39,29 +39,4 @@ export const supabase = client;
 
 export function isSupabaseConfigured(): boolean {
   return !isPlaceholder;
-}
-
-/**
- * Phase 0 smoke test: a trivial read against the items table.
- * Succeeds if the table exists (even empty) — an RLS-permitted empty scan or a
- * "table missing" code both prove URL/key/env wiring is correct. Schema and
- * policies arrive in Phase 2.
- */
-export async function verifySupabaseConnection(): Promise<boolean> {
-  if (!supabase) {
-    throw new Error(
-      'Supabase is not configured yet — fill EXPO_PUBLIC_SUPABASE_URL and ' +
-        'EXPO_PUBLIC_SUPABASE_ANON_KEY in .env (see Phase 0 task 0.4), then restart.',
-    );
-  }
-  const { error } = await supabase.from('items').select('id').limit(1);
-  if (error && error.code === 'PGRST205') {
-    // Table not found = connectivity + auth OK; tables are created in Phase 2.
-    return true;
-  }
-  if (error && error.code !== '42501') {
-    // 42501 = RLS blocked the anon read, which still proves the connection works.
-    throw new Error(`Supabase query failed: ${error.message}`);
-  }
-  return true;
 }

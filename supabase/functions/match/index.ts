@@ -8,7 +8,7 @@
 // Contract:
 //   POST /match
 //   body: { lostReportId: string }
-//   auth: Bearer <Clerk JWT> — the caller must own the report (the student who
+//   auth: Bearer <session access token> — the caller must own the report (the student who
 //         filed it), or be staff/admin.
 //
 // Guard rails (AGENTS.md):
@@ -34,7 +34,7 @@ interface MatchBody {
   lostReportId?: string;
 }
 
-interface ClerkClaims {
+interface TokenClaims {
   sub?: string;
 }
 
@@ -126,7 +126,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const payloadPart = token.split('.')[1];
     const claims = JSON.parse(
       atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')),
-    ) as ClerkClaims;
+    ) as TokenClaims;
     callerId = claims.sub ?? null;
   } catch {
     return fail(401, 'unauthenticated', 'Malformed bearer token.');

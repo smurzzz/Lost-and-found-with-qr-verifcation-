@@ -22,10 +22,10 @@ const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
 
 export default function StaffProfileScreen() {
   const role = 'staff' as const;
-  const { dbUser, clerkUser, isDemo, setDemoRole, signOut } = useSession();
+  const { dbUser, user, isDemo, setDemoRole, signOut } = useSession();
   const queryClient = useQueryClient();
 
-  const name = dbUser?.name ?? clerkUser?.name ?? 'Maya Chen';
+  const name = dbUser?.name ?? user?.name ?? 'Maya Chen';
   const initials = initialsOf(name);
 
   async function handleLogout() {

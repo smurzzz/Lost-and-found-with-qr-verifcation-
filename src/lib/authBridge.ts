@@ -1,68 +1,54 @@
-import * as SecureStore from 'expo-secure-store';
+/**
+ * Clerk → Supabase JWT bridge.
+ *
+ * ClaimIt uses Clerk for SSO identity (Google via the Clerk instance) and
+ * Supabase (Postgres + RLS) as the data store. Supabase RLS requires a token
+ * with `role: 'authenticated'` whose `sub` equals the users.id (which we sync
+ * to Clerk's user.id). We apply a Clerk-issued `supabase` template JWT to the
+ * Supabase client's session so PostgREST treats the caller as authenticated.
+ *
+ * Clerk lets you define a JWT template named `supabase` that includes:
+ *   { "sub": "{{user.id}}", "role": "authenticated" }
+ * `useAuth().getToken({ template: 'supabase' })` fetches it; session.tsx then
+ * applies it via `supabase.auth.setSession({ access_token, refresh_token: null })`.
+ *
+ * If the template is missing or lacks the role claim, RLS executes as `anon`
+ * and the users self-signup insert fails — the login screen decodes the token
+ * claims below to surface exactly that.
+ */
 
-import { CLERK_TOKEN_KEY } from '@/constants/keys';
 import { supabase } from '@/lib/supabase';
 
-/**
- * Bridge between Clerk (identity) and Supabase (data). SessionProvider
- * registers a live supplier for the Clerk session JWT; this module stamps the
- * Supabase client's Authorization header with that token so Row-Level Security
- * resolves auth.uid() to the Clerk user. Requires the Supabase project to be
- * configured to verify Clerk JWTs (custom JWT issuer — see docs/07-PROGRESS-TRACKER).
- */
-
-/** Fetches the current Clerk session token (may be null when signed out). */
-type TokenSupplier = () => Promise<string | null>;
-
-let tokenSupplier: TokenSupplier | null = null;
-
-/** Register the live Clerk token supplier (wired by SessionProvider). */
-export function registerTokenSupplier(supplier: TokenSupplier | null): void {
-  tokenSupplier = supplier;
-}
-
-async function getClerkSupabaseTokenInternal(): Promise<string | null> {
-  if (tokenSupplier) {
-    try {
-      const token = await tokenSupplier();
-      if (token) return token;
-    } catch {
-      // Fall through to the stored token rather than failing the sync.
-    }
-  }
-  return SecureStore.getItemAsync(CLERK_TOKEN_KEY);
-}
-
-/** Resolve the current Clerk session token (live supplier, then stored JWT). */
-export async function getClerkSupabaseToken(): Promise<string | null> {
-  return getClerkSupabaseTokenInternal();
-}
-
-/**
- * True once a live Clerk token supplier is wired and Supabase is configured.
- */
-export function isAuthBridgeLive(): boolean {
-  return tokenSupplier !== null && supabase !== null;
-}
-
-/**
- * Apply (or clear) the Clerk session token on the Supabase client. Safe no-op
- * when Supabase isn't configured. If the token is not accepted (Supabase JWT
- * issuer not set up), RLS-relevant queries surface an auth error downstream.
- */
-export async function applyClerkSupabaseToken(token: string | null): Promise<void> {
-  if (!supabase) return;
-  if (token) {
-    await supabase.auth
-      .setSession({ access_token: token, refresh_token: '' })
-      .catch(() => undefined);
-  } else {
-    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+/** Decode a JWT payload for diagnostics (sub / role / iss, non-verifying). */
+export function decodeJwtClaims(token: string): {
+  sub?: string;
+  role?: string;
+  iss?: string;
+} | null {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json) as { sub?: string; role?: string; iss?: string };
+  } catch {
+    return null;
   }
 }
 
-export async function fetchWithClerkToken<T>(op: (token: string | null) => Promise<T>): Promise<T> {
-  return op(await getClerkSupabaseTokenInternal());
+/**
+ * Apply a Clerk `supabase` template token to the Supabase client session.
+ * Call once the Clerk session is active. Passing null signs the Supabase
+ * client out (fallback to anon / RLS denied).
+ */
+export async function applyClerkSupabaseToken(
+  getToken: (opts: { template: string }) => Promise<string | null>,
+): Promise<string | null> {
+  if (!supabase) return null;
+  const token = await getToken({ template: 'supabase' });
+  if (!token) {
+    await supabase.auth.signOut().catch(() => undefined);
+    return null;
+  }
+  await supabase.auth.setSession({ access_token: token, refresh_token: '' });
+  return token;
 }
-
-export { supabase };

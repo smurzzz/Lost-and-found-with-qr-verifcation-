@@ -7,7 +7,7 @@
 // Contract:
 //   POST /functions/v1/release
 //   body: { itemId: string, claimId: string, scannedQrCode: string }
-//   auth: Bearer <Clerk JWT> — must resolve to a users row with role 'staff'
+//   auth: Bearer <session access token> — must resolve to a users row with role 'staff'
 //         (or 'admin'); the user's id becomes the audit actor.
 //
 // Steps (§4, verbatim, with the §11 server-side re-validation):

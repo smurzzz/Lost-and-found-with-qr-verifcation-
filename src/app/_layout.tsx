@@ -16,18 +16,17 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
+import { ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import type { ReactNode } from 'react';
 
-import { ClerkProvider } from '@clerk/expo';
-import { tokenCache } from '@clerk/expo/token-cache';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { getEnv } from '@/lib/env';
 import { SessionProvider } from '@/lib/session';
+import { getEnv } from '@/lib/env';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,24 +38,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const clerkPublishableKey = getEnv().clerkPublishableKey;
-
-/**
- * Clerk wrapper. In placeholder mode (EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY empty,
- * before task 0.4) the app boots without Clerk so the shell still runs; the
- * login screen explains what's missing. Real auth wiring lands in Phase 3.
- */
-function AuthProvider({ children }: { children: ReactNode }) {
-  if (!clerkPublishableKey) {
-    return <>{children}</>;
-  }
-  return (
-    <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
-      {children}
-    </ClerkProvider>
-  );
-}
 
 /** Font family names must match the keys in Fonts (src/constants/theme.ts). */
 const fontMap = {
@@ -74,6 +55,17 @@ const fontMap = {
   PlusJakartaSans_800ExtraBold,
 };
 
+function AppStack() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="(student)" options={{ headerShown: false }} />
+      <Stack.Screen name="(staff)" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontsError] = useFonts(fontMap);
 
@@ -87,18 +79,27 @@ export default function RootLayout() {
     return null;
   }
 
-  return (
-    <AuthProvider>
+  const env = getEnv();
+
+  // Demo mode (Phase 0, pre-0.4): no real keys, so skip Clerk entirely and let
+  // SessionProvider serve the local demo identity.
+  if (!env.isConfigured) {
+    return (
       <QueryClientProvider client={queryClient}>
         <SessionProvider>
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(student)" options={{ headerShown: false }} />
-            <Stack.Screen name="(staff)" options={{ headerShown: false }} />
-          </Stack>
+          <AppStack />
         </SessionProvider>
       </QueryClientProvider>
-    </AuthProvider>
+    );
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ClerkProvider publishableKey={env.clerkPublishableKey} tokenCache={tokenCache}>
+        <SessionProvider>
+          <AppStack />
+        </SessionProvider>
+      </ClerkProvider>
+    </QueryClientProvider>
   );
 }

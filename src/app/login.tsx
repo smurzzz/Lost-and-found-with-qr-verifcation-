@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { useSSO } from '@clerk/expo';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,47 +9,61 @@ import { ThemedView } from '@/components/themed-view';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { Button } from '@/components/ui/button';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
-import { getEnv } from '@/lib/env';
 import { useSession } from '@/lib/session';
 
 /**
  * Login / Onboarding (09-FUNCTIONALITY-PROMPT.md §1).
- * Phase 3: "Continue with SSO" runs real Clerk SSO; after sign-in the
- * SessionProvider syncs the users row and the role guard routes to the
- * correct role's home. With Clerk unconfigured (pre-task-0.4) the buttons
- * fall back to the Phase 1 demo identities so the app stays clickable.
+ * "Continue with Google" starts Clerk's Google OAuth flow (useSSO with
+ * strategy `oauth_google`). Google is a social connection configured in the
+ * Clerk Dashboard — no Google Cloud project of our own. On success the created
+ * session is activated, SessionProvider syncs the users row via the Clerk
+ * `supabase` JWT template, and the role guard routes to the right home.
+ * With EXPO_PUBLIC_* keys unset the buttons fall back to the Phase 1 demo
+ * identities so the app stays clickable.
  * Visuals follow assets/login.webp and the prototype CSS (.login styles).
  */
 export default function LoginScreen() {
+  const { isDemo, isSignedIn, syncError, setDemoRole } = useSession();
   const { startSSOFlow } = useSSO();
-  const { isDemo, syncError, setDemoRole } = useSession();
-  const clerkConfigured = Boolean(getEnv().clerkPublishableKey);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSso() {
+  async function handleGoogle() {
     setError(null);
+    if (isDemo) {
+      // Demo fallback — no keys yet.
+      setDemoRole?.('student');
+      router.replace('/(student)/home');
+      return;
+    }
+    // Re-entry after an OAuth redirect bounce: a successful session already
+    // exists, so let the entry route finish the role routing instead of
+    // starting a second flow.
+    if (isSignedIn) {
+      router.replace('/');
+      return;
+    }
     setBusy(true);
     try {
-      if (!clerkConfigured || !startSSOFlow) {
-        // Demo fallback — no keys yet.
-        setDemoRole?.('student');
-        router.replace('/(student)/home');
-        return;
-      }
-      const result = await startSSOFlow({ strategy: 'oauth_google' });
-      if (!result?.createdSessionId || !result?.setActive) {
-        // User dismissed the provider flow — stay here, non-blocking notice.
+      const { createdSessionId, setActive, authSessionResult } = await startSSOFlow({
+        strategy: 'oauth_google',
+      });
+      if (authSessionResult && authSessionResult.type !== 'success') {
         setError('Sign-in cancelled. Try again when you’re ready.');
         return;
       }
-      // Activate the Clerk session; SessionProvider then syncs the users
-      // row and applies the Supabase token (authBridge), and the role
-      // guard routes from "/" to the right home.
-      await result.setActive({ session: result.createdSessionId });
+      if (!createdSessionId || !setActive) {
+        setError('Google sign-in could not be completed. Please try again.');
+        return;
+      }
+      await setActive({ session: createdSessionId });
       router.replace('/');
-    } catch {
-      setError('Sign-in failed. Please try again.');
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? `Sign-in failed. ${cause.message}`
+          : 'Sign-in failed. Please try again.',
+      );
     } finally {
       setBusy(false);
     }
@@ -89,14 +102,14 @@ export default function LoginScreen() {
           <SecureQrCard />
 
           <Button
-            label={busy ? 'Signing in…' : 'Continue with SSO'}
+            label={busy ? 'Signing in…' : 'Continue with Google'}
             icon="✓"
             variant="navy"
-            onPress={handleSso}
+            onPress={handleGoogle}
             disabled={busy}
           />
 
-          {!clerkConfigured && (
+          {isDemo && (
             <Button
               label="Staff sign in (demo)"
               variant="light"
@@ -115,10 +128,10 @@ export default function LoginScreen() {
             </ThemedText>
           ) : null}
 
-          {!clerkConfigured && (
+          {isDemo && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.devNote}>
-              Demo mode — Clerk keys not set yet (task 0.4). SSO signs in with the demo identities
-              until then.
+              Demo mode — fill EXPO_PUBLIC_SUPABASE_* and EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in .env
+              to enable Google sign-in. Until then the buttons use the demo identities.
             </ThemedText>
           )}
 
@@ -155,7 +168,7 @@ function SecureQrCard() {
       <View style={styles.secureCopy}>
         <ThemedText style={styles.secureTitle}>Secure QR verification</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          We&apos;ll use your organization login to securely verify your identity.
+          We&apos;ll use Google to securely verify your identity.
         </ThemedText>
       </View>
     </View>

@@ -13,9 +13,11 @@ Reference for every external dependency, why it's used, and where.
 
 ## Auth
 
-| Library             | Purpose            | Notes                                                                                                                                                |
-| ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@clerk/clerk-expo` | SSO authentication | Handles both student self-signup (domain-restricted allowlist) and staff invite-only flows. Session token passed to Supabase for RLS-aware requests. |
+| Library                           | Purpose                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@clerk/expo`                     | SSO authentication (Google) | Google sign-in runs through Clerk (`useSSO` strategy `oauth_google`, `setActive` on the created session) — no Google Cloud project of our own. Any account self-registers as a student (RLS forces `role='student'`); staff are seeded invite-only. Session JWT is bridged to Supabase via the Clerk **`supabase`** JWT template (`sub` = Clerk user id, `role: 'authenticated'`) so RLS and Edge Functions resolve the caller correctly. |
+| `expo-secure-store`               | Clerk token cache           | `@clerk/expo/token-cache` persists the Clerk device token in SecureStore (keyed by Clerk internally).                                                                                                                                                                                                                                                                                                                                     |
+| `expo-auth-session`/`web-browser` | OAuth browser shell         | Used by `@clerk/expo` internally to open/close the OAuth consent window on device. The `auth.expo.io` proxy integration was removed in this SDK — Clerk's native flow redirects back to the app itself, so no proxy is configured.                                                                                                                                                                                                        |
 
 ## Backend / data
 
@@ -35,9 +37,9 @@ Reference for every external dependency, why it's used, and where.
 
 ## Notifications
 
-| Library              | Purpose                                 | Notes                                                             |
-| -------------------- | --------------------------------------- | ----------------------------------------------------------------- |
-| `expo-notifications` | Push notification permission + delivery | Push token stored per user; triggered server-side on match events |
+| Library              | Purpose                                 | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expo-notifications` | Push notification permission + delivery | Push token stored per user; triggered server-side on match events. **Expo Go caveat (SDK 53+):** Android remote-push support was removed from Expo Go and the module now throws at evaluation time there — `src/lib/push.ts` loads it lazily via `import('expo-notifications')` only when `Constants.executionEnvironment !== StoreClient`. Needs a devex/development build (`eas build --profile development`) to actually mint/deliver tokens |
 
 ## Forms / UI
 
@@ -68,4 +70,4 @@ Never commit `.env` — confirm it's in `.gitignore`. Service-role Supabase keys
 
 ## Version pinning policy
 
-Pin exact versions (no `^` or `~`) for: `expo`, `@clerk/clerk-expo`, `@supabase/supabase-js`. These are the libraries most likely to introduce breaking changes across the project's lifetime; everything else can follow normal semver ranges.
+Pin exact versions (no `^` or `~`) for: `expo`, `@clerk/expo`, `@supabase/supabase-js`. These are the libraries most likely to introduce breaking changes across the project's lifetime; everything else can follow normal semver ranges (note: `expo-auth-session`/`expo-web-browser` must stay at the SDK's paired version with `expo`).

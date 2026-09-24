@@ -4,7 +4,7 @@
  * call fetch() or a raw Supabase client directly for transitions.
  */
 
-import { getClerkSupabaseToken } from '@/lib/authBridge';
+import { getSupabaseAccessToken } from '@/lib/token';
 import type { ItemRow } from '@/lib/db';
 import { getEnv } from '@/lib/env';
 
@@ -55,7 +55,7 @@ export interface ReleaseInput {
 
 /** POST /log-found (Edge Function): staff-logged item + server QR tag. */
 export async function logFoundItem(input: LogFoundInput): Promise<ItemRow> {
-  const token = await getClerkSupabaseToken();
+  const token = await getSupabaseAccessToken();
   if (!token) {
     throw new ApiError(401, 'unauthenticated', 'Your session has ended. Please sign in again.');
   }
@@ -94,7 +94,7 @@ export async function logFoundItem(input: LogFoundInput): Promise<ItemRow> {
 
 /** POST /confirm-receipt (Edge Function): confirm a student-reported item. */
 export async function confirmReceivedItem(itemId: string): Promise<ItemRow> {
-  const token = await getClerkSupabaseToken();
+  const token = await getSupabaseAccessToken();
   if (!token) {
     throw new ApiError(401, 'unauthenticated', 'Your session has ended. Please sign in again.');
   }
@@ -139,7 +139,7 @@ export async function confirmReceivedItem(itemId: string): Promise<ItemRow> {
 export async function releaseItem(
   input: ReleaseInput,
 ): Promise<{ itemId: string; claimId: string }> {
-  const token = await getClerkSupabaseToken();
+  const token = await getSupabaseAccessToken();
   if (!token) {
     throw new ApiError(401, 'unauthenticated', 'Your session has ended. Please sign in again.');
   }

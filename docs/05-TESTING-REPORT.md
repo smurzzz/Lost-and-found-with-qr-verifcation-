@@ -103,15 +103,15 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 
 ### Auth & Roles (Phase 3)
 
-| ID      | Case                                                                                                                  | Status |
-| ------- | --------------------------------------------------------------------------------------------------------------------- | ------ |
-| AUTH-01 | Student logs in with a real school-domain Google account → new users row (role `student`), routed to `(student)/home` | ⏳     |
-| AUTH-02 | Staff member (pre-provisioned `users` row) logs in → routed to `(staff)/dashboard`                                    | ⏳     |
-| AUTH-03 | Student cannot reach any `(staff)` route (deep link or nav) — RoleGuard bounces to student home                       | ⏳     |
-| AUTH-04 | Student logs in with a non-school-domain google account → blocked with the domain message                             | ⏳     |
-| AUTH-05 | New staff email with no provisioned row → "not provisioned" error, no row created                                     | ⏳     |
+| ID      | Case                                                                                                                         | Status |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| AUTH-01 | Student logs in with a real Google account → new users row (role `student`), routed to `(student)/home`                      | ⏳     |
+| AUTH-02 | Staff member (pre-provisioned `users` row) logs in → routed to `(staff)/dashboard`                                           | ⏳     |
+| AUTH-03 | Student cannot reach any `(staff)` route (deep link or nav) — RoleGuard bounces to student home                              | ⏳     |
+| AUTH-04 | A second Google account that was never provisioned also signs up as a student (open signup, no domain allowlist)             | ⏳     |
+| AUTH-05 | New staff email with no provisioned row → signs in as a student; staff role appears only after the admin upsert + re-sign-in | ⏳     |
 
-> Gate prerequisites: Supabase JWT issuer added for Clerk, Clerk `supabase` JWT template exists, and migration `20250924000002_phase3_auth.sql` pushed (`users.id` → `text`). See 07-PROGRESS-TRACKER.md block/open-questions.
+> Gate prerequisites for the ⏳ auth rows: Supabase JWT Settings has Clerk configured as a **custom JWT issuer** (JWKS URL from Clerk → Advanced → API Keys), Clerk has a JWT template literally named **`supabase`** containing `"sub": "{{user.id}}"` and `"role": "authenticated"` (the default Clerk token has no role claim, so PostgREST sees `anon` and the self-signup insert fails RLS), and migration `20250924000002_phase3_auth.sql` is pushed (`users.id` → `text`). See 07-PROGRESS-TRACKER.md block/open-questions.
 
 ## 5. Non-functional checks
 

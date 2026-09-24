@@ -20,8 +20,8 @@ import { useFoundItems } from '@/lib/hooks/use-items';
 import { usePushTokenSync } from '@/lib/hooks/use-push-token';
 
 export default function StudentHomeScreen() {
-  const { dbUser, clerkUser, isDemo } = useSession();
-  const name = dbUser?.name ?? clerkUser?.name ?? 'Alex Morgan';
+  const { dbUser, user, isDemo } = useSession();
+  const name = dbUser?.name ?? user?.name ?? 'Alex Morgan';
   const firstName = name.trim().split(/\s+/)[0] || name;
   const initials = initialsOf(name);
   const lostReports = useMyLostReports(dbUser?.id, { enabled: !isDemo });

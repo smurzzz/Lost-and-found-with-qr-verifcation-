@@ -14,10 +14,10 @@ Every found item â€” whether logged directly by staff or reported by a student â
 
 ## Users
 
-| Role        | Registration                                             | Key actions                                                                                                                           |
-| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Student** | Self-registered (school email domain restricted via SSO) | Report lost items, report found items, browse the shared Found Items feed, tap Mine/Not mine, submit claims, track status             |
-| **Staff**   | Admin-provisioned / invite-only                          | Log found items directly, confirm receipt of student-reported items, generate QR tags, scan to release, review claims, view audit log |
+| Role        | Registration                                      | Key actions                                                                                                                           |
+| ----------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Student** | Self-registered (any Google account, open signup) | Report lost items, report found items, browse the shared Found Items feed, tap Mine/Not mine, submit claims, track status             |
+| **Staff**   | Admin-provisioned / invite-only                   | Log found items directly, confirm receipt of student-reported items, generate QR tags, scan to release, review claims, view audit log |
 
 ## Core modules
 
@@ -30,7 +30,7 @@ Every found item â€” whether logged directly by staff or reported by a student â
 ## Tech stack
 
 - **Frontend:** Expo / React Native (Android target)
-- **Auth:** Clerk (SSO, domain-restricted student self-registration, invite-only staff)
+- **Auth:** Clerk (Google SSO) â€” every Google account self-registers as a student; staff are invite-only, seeded as a `users` row, never self-created. Session JWT is bridged to Supabase via a Clerk `supabase` JWT template (`sub` = Clerk user id, `role: 'authenticated'`) so RLS treats the caller as authenticated for signup and reads
 - **Backend/DB:** Supabase (Postgres + Storage + Edge Functions / API routes)
 - **QR:** expo-camera / expo-barcode-scanner for scanning; QR generation server-side, tied to item ID
 - **Notifications:** Expo Notifications (push)

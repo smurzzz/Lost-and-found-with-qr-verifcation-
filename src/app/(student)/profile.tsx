@@ -2,8 +2,8 @@
  * Student Profile — v3 port (Profile, student role).
  * §13 decisions (documented): "Notification Settings" links to the device
  * notification settings (Linking.openSettings); "Help & Support" opens a
- * mailto to the school's placeholder support inbox. Log Out clears Clerk,
- * the React Query cache, then navigates to Login.
+ * mailto to the school's placeholder support inbox. Log Out clears the
+ * Supabase session, the React Query cache, then navigates to Login.
  */
 
 import { router } from 'expo-router';
@@ -23,10 +23,10 @@ const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
 
 export default function StudentProfileScreen() {
   const role = 'student' as const;
-  const { dbUser, clerkUser, isDemo, setDemoRole, signOut } = useSession();
+  const { dbUser, user, isDemo, setDemoRole, signOut } = useSession();
   const queryClient = useQueryClient();
 
-  const name = dbUser?.name ?? clerkUser?.name ?? 'Alex Morgan';
+  const name = dbUser?.name ?? user?.name ?? 'Alex Morgan';
   const initials = initialsOf(name);
 
   async function handleLogout() {
