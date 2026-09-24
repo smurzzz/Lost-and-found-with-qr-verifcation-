@@ -250,6 +250,7 @@ export function FormField({
   value,
   onChangeText,
   onPress,
+  error,
 }: {
   label: string;
   placeholder: string;
@@ -257,6 +258,7 @@ export function FormField({
   value?: string;
   onChangeText?: (text: string) => void;
   onPress?: () => void;
+  error?: string;
 }) {
   return (
     <View>
@@ -279,11 +281,12 @@ export function FormField({
             placeholderTextColor={Colors.mutedForeground}
             value={value}
             onChangeText={onChangeText}
-            style={styles.inputText}
+            style={[styles.inputText, error ? styles.inputError : null]}
           />
         )}
         {trailing ? <View style={styles.fieldTrailing}>{trailing}</View> : null}
       </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -294,23 +297,28 @@ export function TextArea3({
   onChangeText,
   minHeight = 112,
   style,
+  error,
 }: {
   placeholder: string;
   value?: string;
   onChangeText?: (text: string) => void;
   minHeight?: number;
   style?: object;
+  error?: string;
 }) {
   return (
-    <TextInput
-      placeholder={placeholder}
-      placeholderTextColor={Colors.mutedForeground}
-      value={value}
-      onChangeText={onChangeText}
-      multiline
-      textAlignVertical="top"
-      style={[styles.textarea, { minHeight }, style]}
-    />
+    <View>
+      <TextInput
+        placeholder={placeholder}
+        placeholderTextColor={Colors.mutedForeground}
+        value={value}
+        onChangeText={onChangeText}
+        multiline
+        textAlignVertical="top"
+        style={[styles.textarea, { minHeight }, error ? styles.inputError : null, style]}
+      />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+    </View>
   );
 }
 
@@ -458,5 +466,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.regular,
     color: Colors.foreground,
+  },
+  inputError: {
+    borderColor: Colors.destructive,
+  },
+  errorText: {
+    marginTop: 6,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Colors.destructive,
   },
 });

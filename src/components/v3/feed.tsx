@@ -3,13 +3,14 @@
  * from the Lovable source (claimit-app.tsx).
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { MapPin, QrCode, Search } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, ChipButton, StatusPill } from '@/components/v3/core';
+import { ItemCardSkeleton } from '@/components/v3/skeleton';
 import { categories, items, type MockItem } from '@/mocks/data';
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +119,12 @@ export function Feed({
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
   const [dismissed, setDismissed] = useState<string[]>([]);
+  // §1.4: skeleton visuals exist now; Phase 2 swaps the timeout for the real fetch.
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const id = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(id);
+  }, []);
 
   const visible = useMemo(
     () =>
@@ -160,15 +167,17 @@ export function Feed({
         </View>
       )}
       <View style={styles.feedList}>
-        {visible.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            staff={staff}
-            onMine={onMine}
-            onDismiss={() => setDismissed((current) => [...current, item.id])}
-          />
-        ))}
+        {loading
+          ? [0, 1, 2].map((index) => <ItemCardSkeleton key={index} />)
+          : visible.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                staff={staff}
+                onMine={onMine}
+                onDismiss={() => setDismissed((current) => [...current, item.id])}
+              />
+            ))}
         {visible.length === 0 ? (
           <View style={styles.emptyState}>
             <Search size={36} color={Colors.mutedForeground} />

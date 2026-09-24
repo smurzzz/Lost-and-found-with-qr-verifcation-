@@ -1,6 +1,8 @@
 /**
  * ReportForm — v3 port (ReportForm in claimit-app.tsx). Shared by
  * report-lost and report-found; differs by type copy and submit target.
+ * §1.2: the form validates on submit and shows inline per-field errors;
+ * a valid submit navigates (no write in Phase 1).
  */
 
 import { useState } from 'react';
@@ -11,6 +13,13 @@ import { ChevronDown, CircleHelp, Clock3, ImagePlus, MapPin } from 'lucide-react
 import { Colors, Fonts, Radius } from '@/constants/design';
 import { Button3, FormField, Header, TextArea3 } from '@/components/v3/core';
 import { V3Screen } from '@/components/v3/screen';
+
+type Errors = {
+  category?: string;
+  description?: string;
+  date?: string;
+  location?: string;
+};
 
 export function ReportForm({
   type,
@@ -27,6 +36,25 @@ export function ReportForm({
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
+  const [errors, setErrors] = useState<Errors>({});
+
+  function validate(): boolean {
+    const next: Errors = {};
+    if (!category.trim()) next.category = 'Please select a category.';
+    if (!description.trim()) next.description = 'Please describe the item.';
+    if (!date.trim()) next.date = 'Please choose a date.';
+    if (!location.trim()) next.location = 'Please enter a location.';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function handleSubmit() {
+    if (validate()) onSubmit();
+  }
+
+  function clearError(field: keyof Errors) {
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current));
+  }
 
   return (
     <V3Screen nav={nav}>
@@ -36,7 +64,11 @@ export function ReportForm({
           label="Category"
           placeholder="Select a category"
           value={category}
-          onChangeText={setCategory}
+          onChangeText={(text) => {
+            setCategory(text);
+            clearError('category');
+          }}
+          error={errors.category}
           trailing={<ChevronDown size={20} color={Colors.mutedForeground} />}
         />
         <View>
@@ -44,21 +76,33 @@ export function ReportForm({
           <TextArea3
             placeholder="Color, brand, size, and any distinctive details..."
             value={description}
-            onChangeText={setDescription}
+            onChangeText={(text) => {
+              setDescription(text);
+              clearError('description');
+            }}
+            error={errors.description}
           />
         </View>
         <FormField
           label={`Date ${type.toLowerCase()}`}
           placeholder="Sep 24, 2026"
           value={date}
-          onChangeText={setDate}
+          onChangeText={(text) => {
+            setDate(text);
+            clearError('date');
+          }}
+          error={errors.date}
           trailing={<Clock3 size={20} color={Colors.mutedForeground} />}
         />
         <FormField
           label={`Location ${type.toLowerCase()}`}
           placeholder="Building or room"
           value={location}
-          onChangeText={setLocation}
+          onChangeText={(text) => {
+            setLocation(text);
+            clearError('location');
+          }}
+          error={errors.location}
           trailing={<MapPin size={20} color={Colors.mutedForeground} />}
         />
         <Pressable style={styles.photoButton}>
@@ -78,7 +122,7 @@ export function ReportForm({
               : 'Your report will appear right away. Please bring the item to staff so it can be confirmed and tagged.'}
           </Text>
         </View>
-        <Button3 label="Submit Report" onPress={onSubmit} />
+        <Button3 label="Submit Report" onPress={handleSubmit} />
       </View>
     </V3Screen>
   );
