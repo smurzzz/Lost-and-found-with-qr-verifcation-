@@ -54,10 +54,18 @@ export function BottomNav3({
         if (center) {
           return (
             <Pressable key={label} onPress={() => onSelect(tab)} style={styles.centerItem}>
-              <View style={[styles.centerTile, Shadows.brand]}>
+              <View
+                style={[
+                  styles.centerTile,
+                  Shadows.brand,
+                  isActive ? styles.centerTileActive : null,
+                ]}
+              >
                 <Icon size={24} color={Colors.primaryForeground} />
               </View>
-              <Text style={styles.centerLabel}>{label}</Text>
+              <Text style={[styles.centerLabel, isActive ? styles.centerLabelActive : null]}>
+                {label}
+              </Text>
             </Pressable>
           );
         }
@@ -126,9 +134,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  centerTileActive: {
+    borderWidth: 3,
+    borderColor: Colors.primarySoft,
+  },
   centerLabel: {
     fontSize: 10,
     fontFamily: Fonts.semiBold,
     color: Colors.foreground,
+  },
+  centerLabelActive: {
+    color: Colors.primary,
   },
 });

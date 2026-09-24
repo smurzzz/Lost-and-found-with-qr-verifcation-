@@ -16,10 +16,12 @@ export function ReportForm({
   type,
   onBack,
   onSubmit,
+  nav,
 }: {
   type: 'Lost' | 'Found';
   onBack: () => void;
   onSubmit: () => void;
+  nav?: React.ReactNode;
 }) {
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
@@ -27,7 +29,7 @@ export function ReportForm({
   const [location, setLocation] = useState('');
 
   return (
-    <V3Screen>
+    <V3Screen nav={nav}>
       <Header title={`Report a ${type} Item`} onBack={onBack} />
       <View style={styles.form}>
         <FormField

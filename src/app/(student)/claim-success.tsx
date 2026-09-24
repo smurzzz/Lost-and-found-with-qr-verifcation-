@@ -9,11 +9,21 @@ import { Check } from 'lucide-react-native';
 
 import { Colors, Fonts, Shadows } from '@/constants/design';
 import { Button3 } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 
 export default function ClaimSuccessScreen() {
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="student"
+          active="home"
+          onSelect={(tab) => router.push(tabRoute('student', tab))}
+        />
+      }
+    >
       <View style={styles.wrap}>
         <View style={[styles.check, Shadows.float]}>
           <Check size={48} strokeWidth={2.5} color={Colors.success} />

@@ -10,15 +10,25 @@ import { ChevronRight, PackageCheck, Search } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Header } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 
 export default function ReportChooserScreen() {
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="student"
+          active="report"
+          onSelect={(tab) => router.push(tabRoute('student', tab))}
+        />
+      }
+    >
       <Header
         title="Create a report"
         subtitle="What would you like to report?"
-        onBack={() => router.back()}
+        onBack={() => router.push('/(student)/home')}
       />
       <View style={styles.cards}>
         <Pressable

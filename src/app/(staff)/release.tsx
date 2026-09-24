@@ -10,7 +10,9 @@ import { Check } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, StatusPill } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 import { items } from '@/mocks/data';
 
 export default function ReleaseScreen() {
@@ -18,7 +20,16 @@ export default function ReleaseScreen() {
 
   return (
     <View style={styles.dark}>
-      <V3Screen scroll={false}>
+      <V3Screen
+        scroll={false}
+        nav={
+          <BottomNav3
+            role="staff"
+            active="scan"
+            onSelect={(tab) => router.push(tabRoute('staff', tab))}
+          />
+        }
+      >
         <View style={styles.spacer} />
         <View style={styles.sheet}>
           <View style={styles.handle} />

@@ -8,12 +8,22 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Colors, Fonts, Radius } from '@/constants/design';
 import { Header } from '@/components/v3/core';
 import { ItemCard } from '@/components/v3/feed';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 import { items } from '@/mocks/data';
 
 export default function MatchesScreen() {
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="student"
+          active="notifications"
+          onSelect={(tab) => router.push(tabRoute('student', tab))}
+        />
+      }
+    >
       <Header
         title="Possible Matches"
         subtitle="We found items that may match your lost report."

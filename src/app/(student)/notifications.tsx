@@ -7,14 +7,23 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ChevronRight, ShieldCheck, Sparkles } from 'lucide-react-native';
-
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Header } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 
 export default function NotificationsScreen() {
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="student"
+          active="notifications"
+          onSelect={(tab) => router.push(tabRoute('student', tab))}
+        />
+      }
+    >
       <Header title="Notifications" subtitle="Updates about your reports and claims" />
       <View style={styles.list}>
         <Pressable

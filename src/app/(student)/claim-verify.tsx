@@ -11,7 +11,9 @@ import { Image } from 'expo-image';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header, StatusPill, TextArea3 } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 import { items } from '@/mocks/data';
 
 export default function ClaimVerifyScreen() {
@@ -19,7 +21,15 @@ export default function ClaimVerifyScreen() {
   const item = items[1]; // White headphones, per the source.
 
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="student"
+          active="home"
+          onSelect={(tab) => router.push(tabRoute('student', tab))}
+        />
+      }
+    >
       <Header title="Verify Your Claim" onBack={() => router.push('/(student)/home')} />
       <View style={styles.body}>
         <View style={[styles.itemCard, Shadows.card]}>

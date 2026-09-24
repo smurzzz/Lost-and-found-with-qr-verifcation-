@@ -12,7 +12,9 @@ import { ScanLine } from 'lucide-react-native';
 
 import { Colors, Fonts } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 
 export default function ScanScreen() {
   const [scanY] = useState(() => new Animated.Value(0));
@@ -46,7 +48,16 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.dark}>
-      <V3Screen scroll={false}>
+      <V3Screen
+        scroll={false}
+        nav={
+          <BottomNav3
+            role="staff"
+            active="scan"
+            onSelect={(tab) => router.push(tabRoute('staff', tab))}
+          />
+        }
+      >
         <Header title="Scan QR Tag" onBack={() => router.push('/(staff)/dashboard')} />
         <View style={styles.body}>
           <View style={styles.frame}>

@@ -9,12 +9,23 @@ import { Check } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius } from '@/constants/design';
 import { Button3 } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 
 export default function ReleasedScreen() {
   return (
     <View style={styles.green}>
-      <V3Screen scroll={false}>
+      <V3Screen
+        scroll={false}
+        nav={
+          <BottomNav3
+            role="staff"
+            active="scan"
+            onSelect={(tab) => router.push(tabRoute('staff', tab))}
+          />
+        }
+      >
         <View style={styles.wrap}>
           <View style={styles.checkCircle}>
             <Check size={48} color={Colors.primaryForeground} />

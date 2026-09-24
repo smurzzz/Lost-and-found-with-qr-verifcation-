@@ -11,7 +11,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
 import { ItemCard } from '@/components/v3/feed';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 import { items } from '@/mocks/data';
 
 export default function ConfirmReceiptScreen() {
@@ -19,7 +21,15 @@ export default function ConfirmReceiptScreen() {
   const [matches, setMatches] = useState(false);
 
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="staff"
+          active="staff-home"
+          onSelect={(tab) => router.push(tabRoute('staff', tab))}
+        />
+      }
+    >
       <Header
         title="Confirm Receipt"
         subtitle="Compare the report with the item in hand."

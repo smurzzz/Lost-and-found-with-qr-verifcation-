@@ -9,11 +9,21 @@ import { ImagePlus } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius } from '@/constants/design';
 import { Button3, FormField, Header, TextArea3 } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 
 export default function StaffLogFoundScreen() {
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="staff"
+          active="scan"
+          onSelect={(tab) => router.push(tabRoute('staff', tab))}
+        />
+      }
+    >
       <Header title="Log Found Item" onBack={() => router.push('/(staff)/dashboard')} />
       <View style={styles.form}>
         <FormField label="Category" placeholder="Select a category" />

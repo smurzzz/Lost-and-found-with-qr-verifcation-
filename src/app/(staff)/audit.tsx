@@ -4,20 +4,31 @@
  */
 
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PackageCheck } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { ChipButton, Header, StatusPill } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 import { auditStepsStaff, auditStepsStudent, items, type MockItem } from '@/mocks/data';
 
 export default function AuditScreen() {
   const [expanded, setExpanded] = useState('CI-2476');
 
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="staff"
+          active="audit"
+          onSelect={(tab) => router.push(tabRoute('staff', tab))}
+        />
+      }
+    >
       <Header title="Audit Log" subtitle="Chronological item history" />
       <View>
         <View style={styles.filterRow}>

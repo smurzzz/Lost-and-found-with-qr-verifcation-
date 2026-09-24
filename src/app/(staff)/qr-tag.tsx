@@ -12,7 +12,9 @@ import Svg, { Rect } from 'react-native-svg';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { BrandMark, Button3, Header } from '@/components/v3/core';
+import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
+import { tabRoute } from '@/lib/v3-nav';
 import { generateTagId } from '@/lib/qr-tag';
 
 /** Decorative deterministic QR pattern (real QR lands in a later phase). */
@@ -42,7 +44,15 @@ export default function QrTagScreen() {
   void PackageCheck;
 
   return (
-    <V3Screen>
+    <V3Screen
+      nav={
+        <BottomNav3
+          role="staff"
+          active="staff-home"
+          onSelect={(tab) => router.push(tabRoute('staff', tab))}
+        />
+      }
+    >
       <Header
         title="QR Tag"
         subtitle="Ready to print and attach"
