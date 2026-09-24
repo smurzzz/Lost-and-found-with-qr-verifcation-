@@ -155,7 +155,18 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
   /** Apply the Clerk `supabase` template token, then sync the users row. */
   const runSync = useCallback(async () => {
     if (!user) throw new Error('No session user.');
-    await applyClerkSupabaseToken(getToken);
+    const token = await applyClerkSupabaseToken(getToken);
+    if (!token) {
+      throw new Error('no Supabase JWT — Clerk template "supabase" is missing or getToken failed');
+    }
+    // Verify the bridge token BEFORE touching the DB, so a bad template is
+    // reported as such instead of surfacing as a generic RLS violation.
+    const claims = decodeJwtClaims(token);
+    if (!claims?.sub || claims.role !== 'authenticated') {
+      throw new Error(
+        `Clerk JWT claims unexpected (sub=${claims?.sub ?? 'none'}, role=${claims?.role ?? 'none'}) — the template must set role=authenticated`,
+      );
+    }
     const row = await syncUserOnLogin(user);
     setSyncError(null);
     setDbUser(row);

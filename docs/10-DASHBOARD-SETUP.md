@@ -66,6 +66,16 @@ supabase db push            # applies supabase/migrations in filename order
 (or paste each migration into the SQL editor, oldest first). The seed file
 creates demo items plus a staff row — see §5 for real staff accounts.
 
+### When the users insert fails with 42501 after sign-in
+
+Run `supabase/diagnose-users-rls.sql` in the SQL editor — it verifies, in
+order: (A) the `auth.jwt()->>'sub'` policies are actually live, (B) the Clerk
+issuer is registered under Third-Party Auth (if it isn't, Supabase rejects
+every Clerk JWT as anonymous **before** any policy runs — the single most
+common cause of this error after a policy fix), and (C) it simulates the
+app's insert with a synthetic Clerk token, so a `INSERT PASSED` verdict means
+the database side is healthy and the problem is the token the app sends.
+
 ## 4. Deploy the edge functions
 
 The functions (`log-found`, `confirm-receipt`, `release`, `match`) live in

@@ -62,7 +62,16 @@ export async function syncUserOnLogin(profile: Profile): Promise<UserRow> {
     .select('*')
     .single();
   if (insertError) {
-    throw new Error(`users insert failed: ${insertError.message}`);
+    // Include the Postgres code/details (RLS violations are 42501) so the
+    // login screen can show exactly which layer rejected the row.
+    const extra = [
+      insertError.details ? `details: ${insertError.details}` : null,
+      insertError.hint ? `hint: ${insertError.hint}` : null,
+      insertError.code ? `code: ${insertError.code}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    throw new Error(`users insert failed: ${insertError.message}${extra ? ` (${extra})` : ''}`);
   }
   return created as UserRow;
 }
