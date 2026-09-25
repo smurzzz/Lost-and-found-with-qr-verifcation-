@@ -10,10 +10,12 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 
 - Device(s): _____________________
 - Expo build channel: _____________________
-- Backend: Supabase (project: _____________________)
+- Backend: Supabase (project: yunhwfguknapqtrjouwv — functions log-found / confirm-receipt / release / match deployed 2026-09-25, `--no-verify-jwt`, secret `CLAIMIT_QR_SECRET` set)
 - Test accounts: 1 Student, 2 Staff (to test multi-staff audit attribution)
 
 ## 3. Critical-path test cases (must pass before any demo/submission)
+
+> Automated: `npm test` — 19 unit tests over the auth bridge (token getter lifecycle, JWT claim decoding), the session-token helper, the initials util, and the Edge-Function api error contract (bearer header, structured ApiError status/code, network mapping, snake_case normalization). Run green 2026-09-25.
 
 | ID    | Case                                                | Steps                                                                                     | Expected result                                                                                                   | Status |
 | ----- | --------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------ |
@@ -124,9 +126,13 @@ Manual and automated testing covering the five core modules: Staff Logging, Stud
 
 ## 6. Known issues log
 
-| Date | Issue | Severity | Status |
-| ---- | ----- | -------- | ------ |
-|      |       |          |        |
+| Date       | Issue                                                                                                                                                                                                                                       | Severity | Status      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------- |
+| 2026-09-25 | Edge Functions decode the bearer token payload without verifying Clerk's signature (acceptable for this deployment; the DB is the trust anchor via users-table role checks). Swap to real signature verification before any public rollout. | Medium   | Open        |
+| 2026-09-25 | Push notifications (match / release) are best-effort and unverified end-to-end: token registration requires `eas init` + a real device; delivery depends on Expo push service credentials.                                                  | Medium   | Open        |
+| 2026-09-25 | The staff/user view switch is a UI-level preview: a staff account browsing "user view" keeps staff-level RLS data visibility by design. Document and disclose this in any defense/demo rather than presenting it as a permission downgrade. | Low      | Open        |
+| 2026-09-25 | Automated coverage starts at 19 unit tests (auth bridge, token helper, initials util, api error contract). Data-layer / RLS integration tests and on-device E2E remain manual — see §3/§4 checklists.                                       | Low      | In progress |
+| 2026-09-25 | SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ACCESS_TOKEN live in .env (gitignored) for the seeder/CLI; neither may ever be committed or shipped to a client build.                                                                               | High     | Mitigated   |
 
 ## 7. Sign-off
 
