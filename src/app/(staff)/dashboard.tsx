@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Image } from 'expo-image';
 import { ChevronRight, FileText, Plus, Users } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
@@ -47,7 +48,8 @@ function withinLastWeek(createdAt?: string | null, now = Date.now()): boolean {
 export default function StaffDashboardScreen() {
   const [tab, setTab] = useState('Found Items');
   const role = 'staff' as const;
-  const { isDemo, dbUser } = useSession();
+  const { isDemo, dbUser, user } = useSession();
+  const avatarUri = user?.imageUrl ?? null;
   const found = useFoundItems({ enabled: !isDemo });
   const pendingClaims = usePendingClaims({ enabled: !isDemo });
   const studentReports = useStudentReports({ enabled: !isDemo });
@@ -67,7 +69,7 @@ export default function StaffDashboardScreen() {
   const reportsCount = isDemo
     ? items.filter((item) => item.status === 'dropoff').length
     : realStudentReports.filter((item) => withinLastWeek(item.created_at)).length;
-  const avatarText = dbUser?.name ? initialsOf(dbUser.name) : 'JS';
+  const avatarText = dbUser?.name ? initialsOf(dbUser.name) : 'SM';
 
   const foundList = isDemo ? (
     items.map((item) => <ItemCard key={item.id} item={item} staff />)
@@ -153,7 +155,11 @@ export default function StaffDashboardScreen() {
         title="Staff Dashboard"
         action={
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatarText}</Text>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
+            ) : (
+              <Text style={styles.avatarText}>{avatarText}</Text>
+            )}
           </View>
         }
       />
@@ -412,6 +418,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     color: Colors.primaryForeground,
   },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   stats: {
     flexDirection: 'row',
     gap: 8,

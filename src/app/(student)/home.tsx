@@ -6,6 +6,7 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Image } from 'expo-image';
 import { Sparkles } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
@@ -22,6 +23,7 @@ import { usePushTokenSync } from '@/lib/hooks/use-push-token';
 export default function StudentHomeScreen() {
   const { dbUser, user, isDemo } = useSession();
   const name = dbUser?.name ?? user?.name ?? 'Alex Morgan';
+  const avatarUri = user?.imageUrl ?? null;
   const firstName = name.trim().split(/\s+/)[0] || name;
   const initials = initialsOf(name);
   const lostReports = useMyLostReports(dbUser?.id, { enabled: !isDemo });
@@ -97,7 +99,11 @@ export default function StudentHomeScreen() {
           <Text style={styles.heading}>Find your lost item.</Text>
         </View>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
+          ) : (
+            <Text style={styles.avatarText}>{initials}</Text>
+          )}
         </View>
       </View>
 
@@ -150,6 +156,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     color: Colors.primaryForeground,
   },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   reportsSection: { marginTop: 28, paddingHorizontal: 16 },
   reportsHeading: {
     marginBottom: 12,

@@ -11,7 +11,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Image } from 'expo-image';
-import { CircleHelp, ChevronRight, Settings } from 'lucide-react-native';
+import { ChevronRight, CircleHelp, Settings, ShieldCheck } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
@@ -24,7 +24,7 @@ const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
 
 export default function StudentProfileScreen() {
   const role = 'student' as const;
-  const { dbUser, user, isDemo, setDemoRole, signOut } = useSession();
+  const { dbUser, user, isDemo, canSwitchViews, setDemoRole, setViewRole, signOut } = useSession();
   const queryClient = useQueryClient();
 
   const name = dbUser?.name ?? user?.name ?? 'Alex Morgan';
@@ -76,6 +76,21 @@ export default function StudentProfileScreen() {
               <Text style={styles.toggleText}>Staff preview</Text>
             </Pressable>
           </View>
+        )}
+
+        {/* Real staff/admin browsing in student view: jump back to the staff UI. */}
+        {!isDemo && canSwitchViews && (
+          <Pressable
+            style={[styles.staffViewButton, Shadows.card]}
+            onPress={() => {
+              setViewRole?.('staff');
+              router.replace('/(staff)/dashboard');
+            }}
+          >
+            <ShieldCheck size={20} color={Colors.primary} />
+            <Text style={[styles.staffViewText, { color: Colors.primary }]}>Staff view</Text>
+            <ChevronRight size={20} color={Colors.mutedForeground} />
+          </Pressable>
         )}
 
         <View style={[styles.settings, Shadows.card]}>
@@ -186,6 +201,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: Colors.foreground,
+  },
+  staffViewButton: {
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    minHeight: 60,
+    paddingHorizontal: 16,
+  },
+  staffViewText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
   },
   logout: { marginTop: 20 },
   logoutText: { color: Colors.destructive },

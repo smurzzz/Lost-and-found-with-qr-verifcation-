@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Image } from 'expo-image';
 
-import { ChevronRight, CircleHelp, Settings } from 'lucide-react-native';
+import { ChevronRight, CircleHelp, Settings, User } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
@@ -24,7 +24,7 @@ const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
 
 export default function StaffProfileScreen() {
   const role = 'staff' as const;
-  const { dbUser, user, isDemo, setDemoRole, signOut } = useSession();
+  const { dbUser, user, isDemo, canSwitchViews, setDemoRole, setViewRole, signOut } = useSession();
   const queryClient = useQueryClient();
 
   const name = dbUser?.name ?? user?.name ?? 'Maya Chen';
@@ -76,6 +76,21 @@ export default function StaffProfileScreen() {
               <Text style={[styles.toggleText, styles.toggleTextActive]}>Staff preview</Text>
             </View>
           </View>
+        )}
+
+        {/* Real staff/admin in staff view: preview the student experience. */}
+        {!isDemo && canSwitchViews && (
+          <Pressable
+            style={[styles.viewButton, Shadows.card]}
+            onPress={() => {
+              setViewRole?.('student');
+              router.replace('/(student)/home');
+            }}
+          >
+            <User size={20} color={Colors.primary} />
+            <Text style={[styles.viewText, { color: Colors.primary }]}>User view</Text>
+            <ChevronRight size={20} color={Colors.mutedForeground} />
+          </Pressable>
         )}
 
         <View style={[styles.settings, Shadows.card]}>
@@ -186,6 +201,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: Colors.foreground,
+  },
+  viewButton: {
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    minHeight: 60,
+    paddingHorizontal: 16,
+  },
+  viewText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
   },
   logout: { marginTop: 20 },
   logoutText: { color: Colors.destructive },

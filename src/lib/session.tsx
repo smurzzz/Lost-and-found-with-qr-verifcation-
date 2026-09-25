@@ -38,8 +38,16 @@ export interface SessionState {
   user: Profile | null;
   /** The synced users row (null in demo mode / before sync). */
   dbUser: UserRow | null;
-  /** Effective role driving routing and nav. */
+  /** Effective role driving routing and nav (an explicit view switch wins;
+   *  'admin' drives the staff UI). */
   role: UserRole | null;
+  /** Real mode, staff/admin only: the role currently being previewed.
+   *  Null = using the account's own role. Resets on sign-out / app restart. */
+  viewRole: 'student' | 'staff' | null;
+  /** Staff/admin only: switch which role's UI they are browsing. */
+  setViewRole?: (role: 'student' | 'staff') => void;
+  /** True when the profile "User view / Staff view" toggle should render. */
+  canSwitchViews: boolean;
   /** Sync/RLS failure message (e.g. staff-not-provisioned) — shown on login. */
   syncError: string | null;
   /** Demo mode is active (no EXPO_PUBLIC_* keys) — identity is local-only. */
@@ -104,8 +112,10 @@ function DemoSessionProvider({ children }: { children: ReactNode }) {
       },
       dbUser: DEMO_USERS[demoRole],
       role: demoRole,
+      viewRole: null,
       syncError: null,
       isDemo: true,
+      canSwitchViews: true,
       setDemoRole,
       refresh: async () => undefined,
       signOut,
@@ -122,6 +132,9 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
   const { getToken, signOut: clerkSignOut } = useAuth();
   const [dbUser, setDbUser] = useState<UserRow | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // Staff view switch: which role's UI the user is browsing (staff/admin
+  // only). Local session state only — the DB role never changes here.
+  const [viewRole, setViewRole] = useState<'student' | 'staff' | null>(null);
 
   // Build the app-facing Profile from the Clerk user.
   const user = useMemo<Profile | null>(() => {
@@ -232,7 +245,14 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
     setClerkTokenGetter(null);
     setDbUser(null);
     setSyncError(null);
+    setViewRole(null);
   }, [clerkSignOut]);
+
+  // The view switch is staff/admin-only; an explicit choice wins over the
+  // account role, and 'admin' drives the staff UI.
+  const isStaffAccount = dbUser?.role === 'staff' || dbUser?.role === 'admin';
+  const effectiveRole: UserRole | null =
+    viewRole ?? (dbUser?.role === 'admin' ? 'staff' : (dbUser?.role ?? null));
 
   const value = useMemo<SessionState>(
     () => ({
@@ -240,13 +260,27 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
       isSignedIn: clerkSignedIn ?? false,
       user,
       dbUser: syncError ? null : dbUser,
-      role: dbUser?.role ?? null,
+      role: syncError ? null : effectiveRole,
+      viewRole,
+      setViewRole: isStaffAccount ? setViewRole : undefined,
+      canSwitchViews: Boolean(isStaffAccount) && !syncError,
       syncError,
       isDemo: false,
       refresh,
       signOut,
     }),
-    [clerkLoaded, clerkSignedIn, dbUser, refresh, signOut, syncError, user],
+    [
+      clerkLoaded,
+      clerkSignedIn,
+      dbUser,
+      effectiveRole,
+      isStaffAccount,
+      refresh,
+      signOut,
+      syncError,
+      user,
+      viewRole,
+    ],
   );
 
   return <SessionProviderShell value={value}>{children}</SessionProviderShell>;
