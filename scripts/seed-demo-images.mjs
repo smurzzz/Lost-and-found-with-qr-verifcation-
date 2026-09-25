@@ -6,7 +6,9 @@
  * Photos are curated Unsplash product shots downloaded at 1080px (q=80) and
  * uploaded to the PUBLIC `item-photos` storage bucket under `demo/…`, so the
  * app's <Image> components render the exact stored asset (no hotlinking —
- * the URLs keep working offline of Unsplash).
+ * the URLs keep working offline of Unsplash). Identical source photos (e.g.
+ * a lost report matching its found item) are detected by sha256 and reuse
+ * the already-uploaded object.
  *
  * Requires the SERVICE-ROLE key (RLS doesn't apply to it, so this works
  * without any signed-in user). NEVER ship it to a client build.
@@ -363,7 +365,10 @@ async function uploadPhoto(objectName, unsplashId) {
   const hash = createHash('sha256').update(bytes).digest('hex');
   const duplicate = seenHashes.get(hash);
   if (duplicate) {
-    throw new Error(`photo-${unsplashId} is byte-identical to ${duplicate} — dedupe the manifest`);
+    // Same source photo reused on purpose (e.g. a lost report matching its
+    // found item) — point the row at the object that is already uploaded.
+    console.log(`  · ${objectName} reuses ${duplicate} (identical source photo)`);
+    return storageUrl(`${FOLDER}/${duplicate}`);
   }
   seenHashes.set(hash, objectName);
 
