@@ -6,8 +6,6 @@
 
 import { Platform } from 'react-native';
 
-import '@/global.css';
-
 /**
  * Font family names. These must match the keys passed to useFonts() in
  * app/_layout.tsx — with expo-font, the map key IS the family name.
