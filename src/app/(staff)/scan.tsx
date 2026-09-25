@@ -1,7 +1,9 @@
 /**
  * Scan QR Tag (staff) — v3 port (Scanner) wired to the real camera (Phase 9).
  *
- * Uses expo-camera's CameraView barcode scanner (QR only). Permission flows:
+ * Uses expo-camera's CameraView barcode scanner — QR codes AND 1D barcodes
+ * (Code 128/39/93, EAN-13/8, UPC-A/E, Codabar, ITF-14), so a ClaimIt tag is
+ * scannable whichever symbology it was printed in. Permission flows:
  * unrequested → ask; denied → recovery panel with a link to device settings.
  * On a successful decode the tag is resolved against the DB (items by
  * qr_code) — a tag that matches nothing is surfaced as an invalid-scan error
@@ -26,6 +28,19 @@ import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
 import { fetchItemByQrCode } from '@/lib/db';
 import { useSession } from '@/lib/session';
+
+const SCAN_TYPES = [
+  'qr',
+  'code128',
+  'code39',
+  'code93',
+  'codabar',
+  'ean13',
+  'ean8',
+  'itf14',
+  'upc_a',
+  'upc_e',
+] as const;
 
 export default function ScanScreen() {
   const { isDemo } = useSession();
@@ -56,7 +71,7 @@ export default function ScanScreen() {
       // is plausible enough to open the confirmation sheet.
       const item = await fetchItemByQrCode(tag);
       if (!item) {
-        setScanError('That QR tag is not in the system. Check the tag and try again.');
+        setScanError('That tag is not in the system. Check the tag and try again.');
         handledRef.current = false;
         setHandling(false);
         return;
@@ -80,7 +95,7 @@ export default function ScanScreen() {
         <CameraView
           style={styles.camera}
           facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          barcodeScannerSettings={{ barcodeTypes: [...SCAN_TYPES] }}
           onBarcodeScanned={handleBarcode}
         />
       ) : null}
@@ -107,7 +122,7 @@ export default function ScanScreen() {
 
           {simulate ? (
             <>
-              <Text style={styles.help}>Scan the item&apos;s QR tag to release.</Text>
+              <Text style={styles.help}>Scan the item&apos;s QR tag or barcode to release.</Text>
               <Button3
                 label="Simulate scan"
                 variant="success"
@@ -149,7 +164,7 @@ export default function ScanScreen() {
             <View style={styles.panel}>
               <Text style={styles.panelTitle}>Camera permission denied</Text>
               <Text style={styles.panelText}>
-                Open your device settings to allow camera access, then scan the QR tag to release.
+                Open your device settings to allow camera access, then scan the tag to release.
               </Text>
               <Button3
                 label="Open Settings"
@@ -159,7 +174,7 @@ export default function ScanScreen() {
               />
             </View>
           ) : (
-            <Text style={styles.help}>Scan the item&apos;s QR tag to release.</Text>
+            <Text style={styles.help}>Scan the item&apos;s QR tag or barcode to release.</Text>
           )}
         </View>
       </V3Screen>
