@@ -320,7 +320,14 @@ export default function StaffDashboardScreen() {
                 <Pressable
                   key={claim.id}
                   style={[styles.claimCard, Shadows.card]}
-                  onPress={() => router.push('/(staff)/scan')}
+                  onPress={() =>
+                    claim.item
+                      ? router.push({
+                          pathname: '/(staff)/release',
+                          params: { itemId: claim.item.id },
+                        })
+                      : router.push('/(staff)/scan')
+                  }
                 >
                   <View style={styles.claimIcon}>
                     <FileText size={20} color={Colors.pendingForeground} />
