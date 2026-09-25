@@ -42,7 +42,8 @@ export default function ClaimVerifyScreen() {
     : item
       ? `${item.category} · ${item.found_location}`
       : undefined;
-  const image = isDemo ? demoItem.image : undefined;
+  // Demo uses the mock asset; the real DB item carries its photo_url.
+  const image = isDemo ? demoItem.image : item?.photo_url ? { uri: item.photo_url } : undefined;
   const pillStatus = isDemo ? 'pending' : item ? itemStatusToPill[item.status] : undefined;
   const detailTrimmed = detail.trim();
   const detailTooShort = !isDemo && detailTrimmed.length > 0 && detailTrimmed.length < 5;

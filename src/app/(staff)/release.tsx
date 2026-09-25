@@ -175,9 +175,17 @@ export default function ReleaseScreen() {
           ) : (
             <>
               <View style={styles.itemRow}>
-                <View style={styles.itemTile}>
-                  <PackageCheck size={28} color={Colors.primaryForeground} />
-                </View>
+                {item.photo_url ? (
+                  <Image
+                    source={{ uri: item.photo_url }}
+                    style={styles.itemImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.itemTile}>
+                    <PackageCheck size={28} color={Colors.primaryForeground} />
+                  </View>
+                )}
                 <View style={styles.itemText}>
                   <StatusPill status={itemStatusToPill[item.status]} />
                   <Text style={styles.itemName}>{item.title}</Text>
