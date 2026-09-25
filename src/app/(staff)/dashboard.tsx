@@ -16,7 +16,7 @@
 
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Image } from 'expo-image';
 import { ChevronRight, FileText, Plus, Users } from 'lucide-react-native';
@@ -133,6 +133,7 @@ export default function StaffDashboardScreen() {
 
   return (
     <V3Screen
+      scroll={false}
       nav={
         <BottomNav3
           role={role}
@@ -178,8 +179,13 @@ export default function StaffDashboardScreen() {
         ))}
       </View>
 
-      <View>
-        <View style={styles.tabRow}>
+      {/* Horizontal tab pills — swipeable, so every tab stays reachable. */}
+      <View style={styles.tabRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRowContent}
+        >
           {tabs.map((name) => (
             <Pressable
               key={name}
@@ -196,10 +202,15 @@ export default function StaffDashboardScreen() {
               </Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
-      <View style={styles.list}>
+      {/* Per-tab list owns the vertical scroll (stats + tabs stay pinned). */}
+      <ScrollView
+        style={styles.listScroll}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+      >
         {tab === 'Found Items' ? foundList : null}
         {tab === 'Student Reports' ? (
           isDemo ? (
@@ -329,7 +340,7 @@ export default function StaffDashboardScreen() {
           )
         ) : null}
         {tab === 'Users' ? usersList : null}
-      </View>
+      </ScrollView>
     </V3Screen>
   );
 }
@@ -459,11 +470,11 @@ const styles = StyleSheet.create({
   fabPressed: {
     opacity: 0.85,
   },
-  tabRow: {
+  tabRow: { marginTop: 20 },
+  tabRowContent: {
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 16,
-    marginTop: 20,
   },
   tab: {
     height: 36,
@@ -482,7 +493,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
   },
-  list: { gap: 16, paddingHorizontal: 16, paddingTop: 16 },
+  listScroll: { flex: 1 },
+  list: {
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+    flexGrow: 1,
+  },
   claimCard: {
     flexDirection: 'row',
     alignItems: 'center',
