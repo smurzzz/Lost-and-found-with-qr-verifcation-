@@ -355,6 +355,20 @@ export async function fetchAuditFeed(): Promise<AuditEventRow[]> {
   return (data ?? []) as unknown as AuditEventRow[];
 }
 
+/**
+ * All users (staff/admin only — RLS `users_select_self` returns everyone for
+ * staff/admin, but only the caller's own row for students).
+ */
+export async function fetchAllUsers(): Promise<UserRow[]> {
+  const { data, error } = await client()
+    .from('users')
+    .select('*')
+    .order('role', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as UserRow[];
+}
+
 /** The caller's users row (role checks, profile screen). */
 export async function fetchUser(userId: string): Promise<UserRow | null> {
   const { data, error } = await client().from('users').select('*').eq('id', userId).maybeSingle();

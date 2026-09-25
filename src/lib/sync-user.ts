@@ -23,6 +23,8 @@ export interface Profile {
   id: string;
   name: string;
   email: string;
+  /** Clerk/Google profile photo, when the account has one. */
+  imageUrl?: string | null;
 }
 
 /**

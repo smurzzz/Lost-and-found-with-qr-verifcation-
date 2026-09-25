@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { Image } from 'expo-image';
+
 import { ChevronRight, CircleHelp, Settings } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
@@ -26,6 +28,7 @@ export default function StaffProfileScreen() {
   const queryClient = useQueryClient();
 
   const name = dbUser?.name ?? user?.name ?? 'Maya Chen';
+  const avatarUri = user?.imageUrl ?? null;
   const initials = initialsOf(name);
 
   async function handleLogout() {
@@ -47,7 +50,11 @@ export default function StaffProfileScreen() {
       <Header title="Profile" />
       <View style={styles.body}>
         <View style={[styles.avatar, Shadows.brand]}>
-          <Text style={styles.avatarText}>{initials}</Text>
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
+          ) : (
+            <Text style={styles.avatarText}>{initials}</Text>
+          )}
         </View>
         <Text style={styles.name}>{name}</Text>
         <View style={styles.roleBadge}>
@@ -116,6 +123,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     color: Colors.primaryForeground,
   },
+  avatarImage: { width: '100%', height: '100%', borderRadius: 48 },
   name: {
     marginTop: 16,
     fontSize: 20,

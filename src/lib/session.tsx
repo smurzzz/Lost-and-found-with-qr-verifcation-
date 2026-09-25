@@ -134,6 +134,8 @@ function ClerkSessionProvider({ children }: { children: ReactNode }) {
         clerkUser.primaryEmailAddress?.emailAddress ||
         'ClaimIt user',
       email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
+      // Google accounts carry their profile photo through Clerk automatically.
+      imageUrl: clerkUser.imageUrl,
     };
   }, [clerkUser]);
 

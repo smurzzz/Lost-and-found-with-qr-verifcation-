@@ -7,6 +7,8 @@
  * Phase 7: the Pending Claims tab + stat read real claims via usePendingClaims.
  * Phase 8: the Student Reports tab + stat read real pending_dropoff items via
  * useStudentReports, and each card opens Confirm Receipt with its item id.
+ * Users tab: staff/admin directory — RLS returns every users row for staff
+ * (students only ever see their own), so this lists students and staff alike.
  * §7: the three summary counts are scoped to "This week" — the trailing 7
  * days keyed on `created_at`; the lists themselves are not windowed. Scan is
  * reachable directly from the bottom nav.
@@ -16,7 +18,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ChevronRight, FileText, Plus } from 'lucide-react-native';
+import { ChevronRight, FileText, Plus, Users } from 'lucide-react-native';
 
 import { Colors, Fonts, Radius, Shadows } from '@/constants/design';
 import { Button3, Header } from '@/components/v3/core';
@@ -26,11 +28,13 @@ import { BottomNav3 } from '@/components/v3/bottom-nav';
 import { V3Screen } from '@/components/v3/screen';
 import { tabRoute } from '@/lib/v3-nav';
 import { useFoundItems, useStudentReports } from '@/lib/hooks/use-items';
+import { useAllUsers } from '@/lib/hooks/use-users';
 import { usePendingClaims } from '@/lib/hooks/use-claims';
+import type { UserRole, UserRow } from '@/lib/db';
 import { initialsOf, useSession } from '@/lib/session';
 import { items, staffPendingClaims } from '@/mocks/data';
 
-const tabs = ['Found Items', 'Student Reports', 'Pending Claims'];
+const tabs = ['Found Items', 'Student Reports', 'Pending Claims', 'Users'];
 
 // Summary counts are scoped to "This week": the trailing 7 days from now,
 // keyed on `created_at`. The lists themselves are not windowed.
@@ -47,6 +51,8 @@ export default function StaffDashboardScreen() {
   const found = useFoundItems({ enabled: !isDemo });
   const pendingClaims = usePendingClaims({ enabled: !isDemo });
   const studentReports = useStudentReports({ enabled: !isDemo });
+  const allUsers = useAllUsers({ enabled: !isDemo });
+  const realUsers = allUsers.data ?? [];
   const realPendingClaims = pendingClaims.data ?? [];
   const realStudentReports = studentReports.data ?? [];
 
@@ -84,6 +90,43 @@ export default function StaffDashboardScreen() {
     </View>
   ) : (
     realItems.map((item) => <StaffItemCard key={item.id} item={item} />)
+  );
+
+  const usersList = isDemo ? (
+    <View style={styles.listError}>
+      <Text style={styles.listErrorTitle}>Users</Text>
+      <Text style={styles.listErrorMessage}>
+        The directory loads from the database in real (non-demo) mode.
+      </Text>
+    </View>
+  ) : allUsers.isLoading ? (
+    <View style={styles.listError}>
+      <Text style={styles.listErrorTitle}>Loading users…</Text>
+    </View>
+  ) : allUsers.isError ? (
+    <View style={styles.listError}>
+      <Text style={styles.listErrorTitle}>Couldn&apos;t load users</Text>
+      <Text style={styles.listErrorMessage}>
+        {allUsers.error instanceof Error
+          ? allUsers.error.message
+          : 'The directory is unavailable right now.'}
+      </Text>
+      <View style={styles.listErrorButton}>
+        <Button3
+          label="Retry"
+          variant="outline"
+          height={44}
+          onPress={() => void allUsers.refetch()}
+        />
+      </View>
+    </View>
+  ) : realUsers.length === 0 ? (
+    <View style={styles.listError}>
+      <Text style={styles.listErrorTitle}>No users yet</Text>
+      <Text style={styles.listErrorMessage}>People appear here after their first sign-in.</Text>
+    </View>
+  ) : (
+    realUsers.map((user) => <UserRowCard key={user.id} user={user} />)
   );
 
   return (
@@ -279,12 +322,83 @@ export default function StaffDashboardScreen() {
             })
           )
         ) : null}
+        {tab === 'Users' ? usersList : null}
       </View>
     </V3Screen>
   );
 }
 
+const roleBadgeStyles: Record<UserRole, object> = {
+  student: { backgroundColor: Colors.muted },
+  staff: { backgroundColor: Colors.primarySoft },
+  admin: { backgroundColor: Colors.pendingSoft },
+};
+
+/** One row of the staff Users directory (name, email, role badge). */
+function UserRowCard({ user }: { user: UserRow }) {
+  return (
+    <View style={[styles.userCard, Shadows.card]}>
+      <View style={styles.userAvatar}>
+        <Text style={styles.userAvatarText}>{initialsOf(user.name)}</Text>
+      </View>
+      <View style={styles.userText}>
+        <Text style={styles.userName} numberOfLines={1}>
+          {user.name}
+        </Text>
+        <Text style={styles.userEmail} numberOfLines={1}>
+          {user.email}
+        </Text>
+      </View>
+      <View style={[styles.userRoleBadge, roleBadgeStyles[user.role]]}>
+        <Text style={styles.userRoleText}>{user.role}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    padding: 16,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAvatarText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
+  },
+  userText: { flex: 1, minWidth: 0 },
+  userName: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colors.foreground,
+  },
+  userEmail: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.mutedForeground,
+  },
+  userRoleBadge: {
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  userRoleText: {
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+    color: Colors.foreground,
+  },
   avatar: {
     width: 44,
     height: 44,
