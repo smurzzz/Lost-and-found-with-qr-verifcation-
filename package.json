@@ -68,6 +68,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "seed:demo": "node scripts/seed-demo-images.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
