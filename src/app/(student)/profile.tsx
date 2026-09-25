@@ -20,7 +20,7 @@ import { V3Screen } from '@/components/v3/screen';
 import { initialsOf, useSession } from '@/lib/session';
 import { tabRoute } from '@/lib/v3-nav';
 
-const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
+const HELP_MAILTO = 'mailto:lionelcueva12345@gmail.com?subject=ClaimIt%20Help';
 
 export default function StudentProfileScreen() {
   const role = 'student' as const;

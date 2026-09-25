@@ -20,7 +20,7 @@ import { tabRoute } from '@/lib/v3-nav';
 // §13 decisions (documented): "Notification Settings" links to the device
 // notification settings (Linking.openSettings); "Help & Support" opens a
 // mailto to the school's placeholder support inbox. No in-app prefs screen.
-const HELP_MAILTO = 'mailto:lostfound@school.edu?subject=ClaimIt%20Help';
+const HELP_MAILTO = 'mailto:lionelcueva12345@gmail.com?subject=ClaimIt%20Help';
 
 export default function StaffProfileScreen() {
   const role = 'staff' as const;
