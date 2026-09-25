@@ -69,7 +69,10 @@ const config: ExpoConfig = {
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '',
     eas: {
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '',
+      // EAS project id (public — it appears in every build URL). Resolved
+      // from env when present; the fallback keeps eas-cli working in
+      // contexts that don't load .env (it evaluates this file directly).
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? 'a7ffc0a6-5f9e-4df3-9737-ef745b36ab49',
     },
   },
 };
